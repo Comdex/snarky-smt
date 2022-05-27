@@ -1,0 +1,74 @@
+{
+  "name": "snarky-smt",
+  "version": "0.1.0",
+  "description": "Sparse Merkle Tree for SnarkyJS",
+  "main": "build/module/index.js",
+  "typings": "build/module/index.d.ts",
+  "module": "build/module/index.js",
+  "repository": "https://github.com/Comdex/snarky-smt",
+  "license": "MIT",
+  "keywords": [
+    "sparse merkle tree",
+    "merkle tree",
+    "mina sparse merkle tree",
+    "snarky merkle tree",
+    "snarkyjs",
+    "snarkyjs merkle tree",
+    "zk merkle tree",
+    "zk sparse merkle tree",
+    "zero-knowledge proof",
+    "merkle proof",
+    "mina",
+    "mina protocol",
+    "mina blockchain",
+    "mina crypto"
+  ],
+  "peerDependencies": {
+    "level": "^8.0.0",
+    "snarkyjs": "^0.3.4"
+  },
+  "type": "module",
+  "scripts": {
+    "build:main": "tsc -p tsconfig.json",
+    "build:module": "tsc -p tsconfig.module.json",
+    "watch:build": "tsc -p tsconfig.json -w",
+    "doc:html": "typedoc src/index.ts --exclude **/*.test.ts --out build/docs",
+    "doc:json": "typedoc src/index.ts --exclude **/*.test.ts --json build/docs/typedoc.json",
+    "doc:publish": "gh-pages -m \"[ci skip] Updates\" -d build/docs",
+    "test": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js"
+  },
+  "engines": {
+    "node": ">=16.4.0"
+  },
+  "dependencies": {
+    "level": "^8.0.0",
+    "snarkyjs": "^0.3.4"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.16.4",
+    "@babel/preset-typescript": "^7.16.0",
+    "@types/jest": "^27.0.3",
+    "@typescript-eslint/eslint-plugin": "^5.5.0",
+    "@typescript-eslint/parser": "^5.5.0",
+    "eslint": "^8.7.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-plugin-import": "^2.22.0",
+    "gh-pages": "^3.1.0",
+    "jest": "^27.3.1",
+    "prettier": "^2.3.2",
+    "ts-jest": "^27.0.7",
+    "typedoc": "^0.22.15",
+    "typescript": "^4.6.4"
+  },
+  "files": [
+    "build/module",
+    "!**/*.test.*",
+    "!**/*.json",
+    "LICENSE",
+    "README.md"
+  ],
+  "prettier": {
+    "singleQuote": true
+  }
+}
