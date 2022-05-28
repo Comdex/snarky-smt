@@ -46,7 +46,7 @@ export function fromCompactProofJSONValue(
   };
 }
 
-export /**
+/**
  * Create a empty value for a CircuitValue, that would populate all fields of this CircuitValue with Field.zero.
  *
  * @export
@@ -54,7 +54,7 @@ export /**
  * @param {AsFieldElements<V>} valueType
  * @return {*}  {V}
  */
-function createEmptyValue<V extends CircuitValue>(
+export function createEmptyValue<V extends CircuitValue>(
   valueType: AsFieldElements<V>
 ): V {
   const emptyValue = (() => {

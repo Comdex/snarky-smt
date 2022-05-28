@@ -23,6 +23,8 @@ export {
   printBits,
   fromCompactProofJSONValue,
   toCompactProofJSONValue,
+  fieldToHexString,
+  hexStringToField,
 } from './lib/utils';
 export { Store } from './lib/store/store';
 export { MemoryStore } from './lib/store/memory_store';

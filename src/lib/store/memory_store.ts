@@ -12,6 +12,14 @@ const enum OperationType {
   del = 1,
 }
 
+/**
+ * Store based on memory
+ *
+ * @export
+ * @class MemoryStore
+ * @implements {Store<V>}
+ * @template V
+ */
 export class MemoryStore<V extends FieldElements> implements Store<V> {
   private nodesMap: Map<string, Field[]>;
   private valuesMap: Map<string, V>;
@@ -23,16 +31,31 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
     v: any;
   }[];
 
+  /**
+   * Creates an instance of MemoryStore.
+   * @memberof MemoryStore
+   */
   constructor() {
     this.nodesMap = new Map<string, Field[]>();
     this.valuesMap = new Map<string, V>();
     this.operationCache = [];
   }
 
+  /**
+   * Clear all prepare operation cache.
+   *
+   * @memberof MemoryStore
+   */
   clearPrepareOperationCache(): void {
     this.operationCache = [];
   }
 
+  /**
+   * Get the tree root. Error is thrown when the root does not exist.
+   *
+   * @return {*}  {Promise<Field>}
+   * @memberof MemoryStore
+   */
   async getRoot(): Promise<Field> {
     const fs = this.nodesMap.get('root');
     if (fs && fs.length == 1) {
@@ -42,6 +65,12 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
     }
   }
 
+  /**
+   * Prepare update the root. Use the commit() method to actually submit changes.
+   *
+   * @param {Field} root
+   * @memberof MemoryStore
+   */
   prepareUpdateRoot(root: Field): void {
     this.operationCache.push({
       opType: OperationType.put,
@@ -51,6 +80,13 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
     });
   }
 
+  /**
+   * Get nodes for a key. Error is thrown when a key that does not exist is being accessed.
+   *
+   * @param {Field} key
+   * @return {*}  {Promise<Field[]>}
+   * @memberof MemoryStore
+   */
   async getNodes(key: Field): Promise<Field[]> {
     let keyStr = key.toString();
     let nodes = this.nodesMap.get(keyStr);
@@ -61,6 +97,13 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
     }
   }
 
+  /**
+   * Prepare put nodes for a key. Use the commit() method to actually submit changes.
+   *
+   * @param {Field} key
+   * @param {Field[]} value
+   * @memberof MemoryStore
+   */
   preparePutNodes(key: Field, value: Field[]): void {
     this.operationCache.push({
       opType: OperationType.put,
@@ -70,6 +113,12 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
     });
   }
 
+  /**
+   * Prepare delete nodes for a key. Use the commit() method to actually submit changes.
+   *
+   * @param {Field} key
+   * @memberof MemoryStore
+   */
   prepareDelNodes(key: Field): void {
     this.operationCache.push({
       opType: OperationType.del,
@@ -79,6 +128,13 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
     });
   }
 
+  /**
+   * Get the value for a key. Error is thrown when a key that does not exist is being accessed.
+   *
+   * @param {Field} path
+   * @return {*}  {Promise<V>}
+   * @memberof MemoryStore
+   */
   async getValue(path: Field): Promise<V> {
     const pathStr = path.toString();
     const v = this.valuesMap.get(pathStr);
@@ -90,6 +146,13 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
     }
   }
 
+  /**
+   * Prepare put the value for a key. Use the commit() method to actually submit changes.
+   *
+   * @param {Field} path
+   * @param {V} value
+   * @memberof MemoryStore
+   */
   preparePutValue(path: Field, value: V): void {
     this.operationCache.push({
       opType: OperationType.put,
@@ -99,6 +162,12 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
     });
   }
 
+  /**
+   * Prepare delete the value for a key. Use the commit() method to actually submit changes.
+   *
+   * @param {Field} path
+   * @memberof MemoryStore
+   */
   prepareDelValue(path: Field): void {
     this.operationCache.push({
       opType: OperationType.del,
@@ -108,6 +177,12 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
     });
   }
 
+  /**
+   * Use the commit() method to actually submit all prepare changes.
+   *
+   * @return {*}  {Promise<void>}
+   * @memberof MemoryStore
+   */
   async commit(): Promise<void> {
     for (let i = 0; i < this.operationCache.length; i++) {
       const v = this.operationCache[i];
@@ -136,11 +211,23 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
     this.clearPrepareOperationCache();
   }
 
+  /**
+   * Clear the store.
+   *
+   * @return {*}  {Promise<void>}
+   * @memberof MemoryStore
+   */
   async clear(): Promise<void> {
     this.nodesMap.clear();
     this.valuesMap.clear();
   }
 
+  /**
+   * Get values map, key is Field.toString().
+   *
+   * @return {*}  {Promise<Map<string, V>>}
+   * @memberof MemoryStore
+   */
   async getValuesMap(): Promise<Map<string, V>> {
     return this.valuesMap;
   }

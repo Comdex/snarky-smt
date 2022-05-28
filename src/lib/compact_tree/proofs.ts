@@ -13,6 +13,13 @@ import { TreeHasher } from './tree_hasher';
 
 await isReady;
 
+/**
+ * Proof for Compact Sparse Merkle Tree
+ *
+ * @export
+ * @class CSparseMerkleProof
+ * @extends {CircuitValue}
+ */
 export class CSparseMerkleProof extends CircuitValue {
   @arrayProp(Field, SMT_DEPTH) sideNodes: Field[];
   @arrayProp(Field, 3) nonMembershipLeafData: Field[];
@@ -30,6 +37,12 @@ export class CSparseMerkleProof extends CircuitValue {
   }
 }
 
+/**
+ * SparseCompactMerkleProof for Compact Sparse Merkle Tree
+ *
+ * @export
+ * @interface CSparseCompactMerkleProof
+ */
 export interface CSparseCompactMerkleProof {
   sideNodes: Field[];
   nonMembershipLeafData: Field[];
@@ -38,6 +51,19 @@ export interface CSparseCompactMerkleProof {
   siblingData: Field[];
 }
 
+/**
+ * Verify Compact Proof for Compact Sparse Merkle Tree
+ *
+ * @export
+ * @template K
+ * @template V
+ * @param {CSparseCompactMerkleProof} cproof
+ * @param {Field} root
+ * @param {K} key
+ * @param {V} [value]
+ * @param {Hasher} [hasher=Poseidon.hash]
+ * @return {*}  {boolean}
+ */
 export function verifyCompactProof_C<
   K extends FieldElements,
   V extends FieldElements
@@ -126,6 +152,19 @@ export function verifyProofWithUpdates_C<
   };
 }
 
+/**
+ * Verify Proof of Compact Sparse Merkle Tree
+ *
+ * @export
+ * @template K
+ * @template V
+ * @param {CSparseMerkleProof} proof
+ * @param {Field} root
+ * @param {K} key
+ * @param {V} [value]
+ * @param {Hasher} [hasher=Poseidon.hash]
+ * @return {*}  {boolean}
+ */
 export function verifyProof_C<K extends FieldElements, V extends FieldElements>(
   proof: CSparseMerkleProof,
   root: Field,
@@ -143,6 +182,14 @@ export function verifyProof_C<K extends FieldElements, V extends FieldElements>(
   return ok;
 }
 
+/**
+ * Compact proof Of Compact Sparse Merkle Tree
+ *
+ * @export
+ * @param {CSparseMerkleProof} proof
+ * @param {Hasher} [hasher=Poseidon.hash]
+ * @return {*}  {CSparseCompactMerkleProof}
+ */
 export function compactProof_C(
   proof: CSparseMerkleProof,
   hasher: Hasher = Poseidon.hash
@@ -170,6 +217,14 @@ export function compactProof_C(
   };
 }
 
+/**
+ * Decompact compact proof of Compact Sparse Merkle Tree
+ *
+ * @export
+ * @param {CSparseCompactMerkleProof} proof
+ * @param {Hasher} [hasher=Poseidon.hash]
+ * @return {*}  {CSparseMerkleProof}
+ */
 export function decompactProof_C(
   proof: CSparseCompactMerkleProof,
   hasher: Hasher = Poseidon.hash

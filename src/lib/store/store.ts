@@ -32,13 +32,13 @@ export interface Store<V extends FieldElements> {
    */
   prepareDelNodes(key: Field): void;
   /**
-   * Get the value for a key.
+   * Get the value for a key. Error is thrown when a key that does not exist is being accessed.
    *
    * @param {Field} path
    * @return {*}  {Promise<V>}
    * @memberof Store
    */
-  getValue(path: Field): Promise<V>;
+  getValue(key: Field): Promise<V>;
   /**
    * Prepare put the value for a key. Use the commit() method to actually submit changes.
    *
@@ -55,7 +55,7 @@ export interface Store<V extends FieldElements> {
    */
   prepareDelValue(path: Field): void;
   /**
-   * Get the tree root
+   * Get the tree root. Error is thrown when the root does not exist.
    *
    * @return {*}  {Promise<Field>}
    * @memberof Store
@@ -89,7 +89,7 @@ export interface Store<V extends FieldElements> {
    */
   clear(): Promise<void>;
   /**
-   * Get values map.
+   * Get values map, key is Field.toString().
    *
    * @return {*}  {Promise<Map<string, V>>}
    * @memberof Store

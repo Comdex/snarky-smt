@@ -6,7 +6,7 @@ import {
   Field,
   Poseidon,
 } from 'snarkyjs';
-import { SMT_DEPTH } from '../constant';
+import { LEFT, SMT_DEPTH } from '../constant';
 import { Hasher } from '../proofs';
 import { createEmptyValue } from '../utils';
 import { CSparseMerkleProof } from './proofs';
@@ -71,9 +71,15 @@ export function verifyProofInCircuit_C<
     let node = proof.sideNodes[i];
 
     currentHash = Circuit.if(
-      pathBits[sideNodesLength - 1 - i].equals(Bool(true)),
+      pathBits[sideNodesLength - 1 - i],
       th.digestNode(node, currentHash).hash,
-      th.digestNode(currentHash, node).hash
+      currentHash
+    );
+
+    currentHash = Circuit.if(
+      pathBits[sideNodesLength - 1 - i].equals(Bool(LEFT)),
+      th.digestNode(currentHash, node).hash,
+      currentHash
     );
   }
 

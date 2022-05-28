@@ -9,6 +9,14 @@ import {
 } from 'abstract-level';
 import { FieldElements } from '../model';
 
+/**
+ * Store based on leveldb
+ *
+ * @export
+ * @class LevelStore
+ * @implements {Store<V>}
+ * @template V
+ */
 export class LevelStore<V extends FieldElements> implements Store<V> {
   private db: Level<string, any>;
   private nodesSubLevel: AbstractSublevel<
@@ -29,6 +37,13 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
   )[];
   private eltTyp: AsFieldElements<V>;
 
+  /**
+   * Creates an instance of LevelStore.
+   * @param {Level<string, any>} db
+   * @param {AsFieldElements<V>} eltTyp
+   * @param {string} smtName
+   * @memberof LevelStore
+   */
   constructor(
     db: Level<string, any>,
     eltTyp: AsFieldElements<V>,
@@ -41,15 +56,32 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
     this.eltTyp = eltTyp;
   }
 
+  /**
+   * Clear all prepare operation cache.
+   *
+   * @memberof LevelStore
+   */
   clearPrepareOperationCache(): void {
     this.operationCache = [];
   }
 
+  /**
+   * Get the tree root. Error is thrown when the root does not exist.
+   *
+   * @return {*}  {Promise<Field>}
+   * @memberof LevelStore
+   */
   async getRoot(): Promise<Field> {
     const valueStr = await this.nodesSubLevel.get('root');
     return Field(valueStr);
   }
 
+  /**
+   * Prepare update the root. Use the commit() method to actually submit changes.
+   *
+   * @param {Field} root
+   * @memberof LevelStore
+   */
   prepareUpdateRoot(root: Field): void {
     this.operationCache.push({
       type: 'put',
@@ -59,11 +91,25 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
     });
   }
 
+  /**
+   * Get nodes for a key. Error is thrown when a key that does not exist is being accessed.
+   *
+   * @param {Field} key
+   * @return {*}  {Promise<Field[]>}
+   * @memberof LevelStore
+   */
   async getNodes(key: Field): Promise<Field[]> {
     const valueStr = await this.nodesSubLevel.get(key.toString());
     return strToFieldArry(valueStr);
   }
 
+  /**
+   * Prepare put nodes for a key. Use the commit() method to actually submit changes.
+   *
+   * @param {Field} key
+   * @param {Field[]} value
+   * @memberof LevelStore
+   */
   preparePutNodes(key: Field, value: Field[]): void {
     this.operationCache.push({
       type: 'put',
@@ -73,6 +119,12 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
     });
   }
 
+  /**
+   * Prepare delete nodes for a key. Use the commit() method to actually submit changes.
+   *
+   * @param {Field} key
+   * @memberof LevelStore
+   */
   prepareDelNodes(key: Field): void {
     this.operationCache.push({
       type: 'del',
@@ -81,12 +133,26 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
     });
   }
 
+  /**
+   * Get the value for a key. Error is thrown when a key that does not exist is being accessed.
+   *
+   * @param {Field} path
+   * @return {*}  {Promise<V>}
+   * @memberof LevelStore
+   */
   async getValue(path: Field): Promise<V> {
     const valueStr = await this.leavesSubLevel.get(path.toString());
     let fs = strToFieldArry(valueStr);
     return this.eltTyp.ofFields(fs);
   }
 
+  /**
+   * Prepare put the value for a key. Use the commit() method to actually submit changes.
+   *
+   * @param {Field} path
+   * @param {V} value
+   * @memberof LevelStore
+   */
   preparePutValue(path: Field, value: V): void {
     const valueStr = value.toFields().toString();
     this.operationCache.push({
@@ -97,6 +163,12 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
     });
   }
 
+  /**
+   * Prepare delete the value for a key. Use the commit() method to actually submit changes.
+   *
+   * @param {Field} path
+   * @memberof LevelStore
+   */
   prepareDelValue(path: Field): void {
     this.operationCache.push({
       type: 'del',
@@ -105,6 +177,12 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
     });
   }
 
+  /**
+   * Use the commit() method to actually submit all prepare changes.
+   *
+   * @return {*}  {Promise<void>}
+   * @memberof LevelStore
+   */
   async commit(): Promise<void> {
     if (this.operationCache.length > 0) {
       await this.db.batch(this.operationCache);
@@ -113,11 +191,23 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
     this.clearPrepareOperationCache();
   }
 
+  /**
+   * Clear the store.
+   *
+   * @return {*}  {Promise<void>}
+   * @memberof LevelStore
+   */
   async clear(): Promise<void> {
     await this.nodesSubLevel.clear();
     await this.leavesSubLevel.clear();
   }
 
+  /**
+   * Get values map, key is Field.toString().
+   *
+   * @return {*}  {Promise<Map<string, V>>}
+   * @memberof LevelStore
+   */
   async getValuesMap(): Promise<Map<string, V>> {
     let valuesMap = new Map<string, V>();
     for await (const [key, valueStr] of this.leavesSubLevel.iterator()) {
