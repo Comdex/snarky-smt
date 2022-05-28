@@ -56,12 +56,12 @@ class Account extends CircuitValue {
 }
 
 // create a memory store
-let store = new MemoryStore<Field>();
+let store = new MemoryStore<Account>();
 // or create a level db store:
 // const levelDb = new Level<string, any>('./db');
-// const store = new LevelStore(levelDb, Field, 'test');
+// const store = new LevelStore<Account>(levelDb, Account, 'test');
 
-let smt = await SparseMerkleTree.buildNewTree<Field, Field>(store);
+let smt = await SparseMerkleTree.buildNewTree<Field, Account>(store);
 // or import a tree by store
 // smt = await SparseMerkleTree.importTree(store);
 
