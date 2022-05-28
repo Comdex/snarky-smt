@@ -21,7 +21,9 @@
     "mina",
     "mina protocol",
     "mina blockchain",
-    "mina crypto"
+    "mina crypto",
+    "mina-zkapp",
+    "zkapp"
   ],
   "peerDependencies": {
     "level": "^8.0.0",
