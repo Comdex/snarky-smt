@@ -89,19 +89,19 @@ const proof = await smt.prove(testKey);
 
 // Note that only methods whose method name ends with InCircuit can run in zkapps (the smart contract of the mina protocol)
 // Verify the Merkle proof in zkapps (existence merkle proof), isOk should be true.
-let isOk = verifyProofInCircuit(proof, root, testKey, testValue, Field);
+let isOk = verifyProofInCircuit(proof, root, testKey, testValue, Account);
 
 // non-existence merkle proof, isOk should be false.
 const emptyValue = createEmptyValue(Account);
-isOk = verifyProofInCircuit(proof, root, testKey, emptyValue, Field);
+isOk = verifyProofInCircuit(proof, root, testKey, emptyValue, Account);
 
-let newRoot = computeRootInCircuit(proof.sideNodes, testKey, newValue, Field);
+let newRoot = computeRootInCircuit(proof.sideNodes, testKey, newValue, Account);
 console.log('newRoot: ', newRoot.toString());
 
 // another way to verify
 const keyHash = Poseidon.hash([testKey]);
-const valueHash = Poseidon.hash([testValue]);
-const newValueHash = Poseidon.hash([newValue]);
+const valueHash = Poseidon.hash(testValue.toFields());
+const newValueHash = Poseidon.hash(newValue.toFields());
 // existence merkle proof, isOk should be true.
 isOk = verifyProofByFieldInCircuit(proof, root, keyHash, valueHash);
 // non-existence merkle proof, isOk should be false.
