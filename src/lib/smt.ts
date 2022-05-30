@@ -147,7 +147,7 @@ export class SparseMerkleTree<
   }
 
   /**
-   * Get the value of a key from the tree.
+   * Get the value for a key from the tree.
    *
    * @param {K} key
    * @return {*}  {(Promise<V | null>)}

@@ -80,7 +80,7 @@ let newValue = new Account(
 const root = await smt.update(testKey, testValue);
 // Create a compacted merkle proof for a key against the current root.
 const cproof = await smt.proveCompact(testKey);
-// erify the compacted Merkle proof
+// Verify the compacted Merkle proof
 const ok = verifyCompactProof(cproof, root, testKey, testValue);
 console.log('ok: ', ok);
 

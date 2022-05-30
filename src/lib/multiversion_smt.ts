@@ -147,19 +147,31 @@ export class MultiVersionSparseMerkleTree<
   }
 
   /**
-   * Get the value of a key from the tree.
+   * Get the value for a key from the tree.
    *
    * @param {K} key
    * @return {*}  {(Promise<V | null>)}
    * @memberof MultiVersionSparseMerkleTree
    */
   async get(key: K): Promise<V | null> {
+    return await this.getForRoot(this.root, key);
+  }
+
+  /**
+   * Get the value for a key against the current root.
+   *
+   * @param {Field} root
+   * @param {K} key
+   * @return {*}  {(Promise<V | null>)}
+   * @memberof MultiVersionSparseMerkleTree
+   */
+  async getForRoot(root: Field, key: K): Promise<V | null> {
     if (this.isEmpty()) {
       throw new Error('Key does not exist');
     }
 
     const pathBits = this.digest(key.toFields()).toBits();
-    let currentHash = this.root;
+    let currentHash = root;
 
     for (let i = 0; i < this.depth(); i++) {
       let currentValue: Field[];
