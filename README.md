@@ -55,15 +55,15 @@ class Account extends CircuitValue {
   }
 }
 
-// create a memory store
+// Create a memory store
 let store = new MemoryStore<Account>();
-// or create a level db store:
+// Or create a level db store:
 // const levelDb = new Level<string, any>('./db');
-// const store = new LevelStore<Account>(levelDb, Account, 'test');
+// let store = new LevelStore<Account>(levelDb, Account, 'test');
 
 let smt = await SparseMerkleTree.buildNewTree<Field, Account>(store);
-// or import a tree by store
-// smt = await SparseMerkleTree.importTree(store);
+// Or import a tree by store
+// smt = await SparseMerkleTree.importTree<Field, Account>(store);
 
 let testKey = Field(1);
 let testValue = new Account(
@@ -87,24 +87,24 @@ console.log('ok: ', ok);
 // Create a merkle proof for a key against the current root.
 const proof = await smt.prove(testKey);
 
-// Note that only methods whose method name ends with InCircuit can run in zkapps (the smart contract of the mina protocol)
+// Note that only methods whose method name ends with InCircuit can run in zkapps (smart contracts of the mina protocol)
 // Verify the Merkle proof in zkapps (existence merkle proof), isOk should be true.
 let isOk = verifyProofInCircuit(proof, root, testKey, testValue, Account);
 
-// non-existence merkle proof, isOk should be false.
+// Non-existence merkle proof, isOk should be false.
 const emptyValue = createEmptyValue(Account);
 isOk = verifyProofInCircuit(proof, root, testKey, emptyValue, Account);
 
 let newRoot = computeRootInCircuit(proof.sideNodes, testKey, newValue, Account);
 console.log('newRoot: ', newRoot.toString());
 
-// another way to verify
+// Another way to verify
 const keyHash = Poseidon.hash([testKey]);
 const valueHash = Poseidon.hash(testValue.toFields());
 const newValueHash = Poseidon.hash(newValue.toFields());
-// existence merkle proof, isOk should be true.
+// Existence merkle proof, isOk should be true.
 isOk = verifyProofByFieldInCircuit(proof, root, keyHash, valueHash);
-// non-existence merkle proof, isOk should be false.
+// Non-existence merkle proof, isOk should be false.
 isOk = verifyProofByFieldInCircuit(proof, root, keyHash, SMT_EMPTY_VALUE);
 newRoot = computeRootByFieldInCircuit(proof.sideNodes, keyHash, newValueHash);
 ```
