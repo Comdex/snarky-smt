@@ -47,29 +47,6 @@ export function fromCompactProofJSONValue(
 }
 
 /**
- * Create a empty value for a CircuitValue, that would populate all fields of this CircuitValue with Field.zero.
- *
- * @export
- * @template V
- * @param {AsFieldElements<V>} valueType
- * @return {*}  {V}
- */
-export function createEmptyValue<V extends CircuitValue>(
-  valueType: AsFieldElements<V>
-): V {
-  const emptyValue = (() => {
-    const n = valueType.sizeInFields();
-    const xs = [];
-    for (var i = 0; i < n; ++i) {
-      xs.push(Field.zero);
-    }
-    return valueType.ofFields(xs);
-  })();
-
-  return emptyValue;
-}
-
-/**
  * Convert field to hex string.
  *
  * @export

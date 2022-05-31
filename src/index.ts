@@ -1,6 +1,10 @@
 export { SparseMerkleTree } from './lib/smt';
 export { MultiVersionSparseMerkleTree } from './lib/multiversion_smt';
-export { FieldElements, SparseCompactMerkleProofJSONValue } from './lib/model';
+export {
+  FieldElements,
+  Optional,
+  SparseCompactMerkleProofJSONValue,
+} from './lib/model';
 export {
   SparseMerkleProof,
   SparseCompactMerkleProof,
@@ -18,7 +22,6 @@ export {
   computeRootInCircuit,
 } from './lib/verify_circuit';
 export {
-  createEmptyValue,
   strToFieldArry,
   printBits,
   fromCompactProofJSONValue,

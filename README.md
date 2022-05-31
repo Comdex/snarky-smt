@@ -39,7 +39,7 @@ import {
   verifyProofByFieldInCircuit,
   verifyProofInCircuit,
   SMT_EMPTY_VALUE,
-  createEmptyValue,
+  Optional,
 } from 'snarky-smt';
 
 class Account extends CircuitValue {
@@ -89,13 +89,16 @@ const proof = await smt.prove(testKey);
 
 // Note that only methods whose method name ends with InCircuit can run in zkapps (smart contracts of the mina protocol)
 // Verify the Merkle proof in zkapps (existence merkle proof), isOk should be true.
-let isOk = verifyProofInCircuit(proof, root, testKey, testValue, Account);
+let isOk = verifyProofInCircuit(proof, root, testKey, Optional.of(testValue));
 
 // Non-existence merkle proof, isOk should be false.
-const emptyValue = createEmptyValue(Account);
-isOk = verifyProofInCircuit(proof, root, testKey, emptyValue, Account);
+isOk = verifyProofInCircuit(proof, root, testKey, Optional.empty(Account));
 
-let newRoot = computeRootInCircuit(proof.sideNodes, testKey, newValue, Account);
+let newRoot = computeRootInCircuit(
+  proof.sideNodes,
+  testKey,
+  Optional.of(newValue)
+);
 console.log('newRoot: ', newRoot.toString());
 
 // Another way to verify

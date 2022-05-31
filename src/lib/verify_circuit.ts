@@ -1,14 +1,7 @@
-import {
-  AsFieldElements,
-  Bool,
-  Circuit,
-  CircuitValue,
-  Field,
-  Poseidon,
-} from 'snarkyjs';
-import { LEFT, SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
+import { Bool, Circuit, CircuitValue, Field, Poseidon } from 'snarkyjs';
+import { SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
+import { Optional } from './model';
 import { Hasher, SparseMerkleProof } from './proofs';
-import { createEmptyValue } from './utils';
 
 /**
  * Verify a merkle proof in circuit.
@@ -31,15 +24,13 @@ export function verifyProofInCircuit<
   proof: SparseMerkleProof,
   root: Field,
   key: K,
-  value: V,
-  valueType: AsFieldElements<V>,
+  optionalValue: Optional<V>,
   hasher: Hasher = Poseidon.hash
 ): Bool {
   const currentHash = computeRootInCircuit(
     proof.sideNodes,
     key,
-    value,
-    valueType,
+    optionalValue,
     hasher
   );
 
@@ -65,14 +56,12 @@ export function computeRootInCircuit<
 >(
   sideNodes: Field[],
   key: K,
-  value: V,
-  valueType: AsFieldElements<V>,
+  optionalValue: Optional<V>,
   hasher: Hasher = Poseidon.hash
 ): Field {
-  const emptyValue = createEmptyValue<V>(valueType);
   let currentHash: Field = Circuit.if(
-    value.equals(emptyValue).not(),
-    hasher(value.toFields()),
+    optionalValue.isSome,
+    hasher(optionalValue.value.toFields()),
     SMT_EMPTY_VALUE
   );
 
@@ -82,16 +71,11 @@ export function computeRootInCircuit<
   const pathBits = path.toBits();
   for (let i = SMT_DEPTH - 1; i >= 0; i--) {
     let node = sideNodes[i];
+
     currentHash = Circuit.if<Field>(
       pathBits[i],
       hasher([node, currentHash]),
-      currentHash
-    );
-
-    currentHash = Circuit.if<Field>(
-      pathBits[i].equals(Bool(LEFT)),
-      hasher([currentHash, node]),
-      currentHash
+      hasher([currentHash, node])
     );
   }
 
@@ -149,16 +133,11 @@ export function computeRootByFieldInCircuit(
   const pathBits = keyHash.toBits();
   for (let i = SMT_DEPTH - 1; i >= 0; i--) {
     let node = sideNodes[i];
+
     currentHash = Circuit.if(
       pathBits[i],
       hasher([node, currentHash]),
-      currentHash
-    );
-
-    currentHash = Circuit.if(
-      pathBits[i].equals(Bool(LEFT)),
-      hasher([currentHash, node]),
-      currentHash
+      hasher([currentHash, node])
     );
   }
   return currentHash;
