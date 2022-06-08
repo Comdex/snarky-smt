@@ -1,4 +1,4 @@
-import { AsFieldElements, Bool, CircuitValue, Field } from 'snarkyjs';
+import { Bool, Field } from 'snarkyjs';
 import { SparseCompactMerkleProofJSONValue } from './model';
 import { SparseCompactMerkleProof } from './proofs';
 
@@ -54,7 +54,7 @@ export function fromCompactProofJSONValue(
  * @return {*}  {string}
  */
 export function fieldToHexString(f: Field): string {
-  return '0x' + BigInt(f.toString()).toString(16);
+  return '0x' + f.toBigInt().toString(16);
 }
 
 /**
@@ -65,7 +65,7 @@ export function fieldToHexString(f: Field): string {
  * @return {*}  {Field}
  */
 export function hexStringToField(hexStr: string): Field {
-  return Field(BigInt(hexStr).toString(10));
+  return Field(BigInt(hexStr));
 }
 
 /**

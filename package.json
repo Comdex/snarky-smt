@@ -1,10 +1,11 @@
 {
   "name": "snarky-smt",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Sparse Merkle Tree for SnarkyJS",
   "main": "build/module/index.js",
   "typings": "build/module/index.d.ts",
   "module": "build/module/index.js",
+  "author": "Comdex",
   "repository": "https://github.com/Comdex/snarky-smt",
   "license": "MIT",
   "keywords": [
@@ -26,7 +27,7 @@
   ],
   "peerDependencies": {
     "level": "^8.0.0",
-    "snarkyjs": "^0.3.4"
+    "snarkyjs": "^0.4.2"
   },
   "type": "module",
   "scripts": {
@@ -43,7 +44,7 @@
   },
   "dependencies": {
     "level": "^8.0.0",
-    "snarkyjs": "^0.3.4"
+    "snarkyjs": "^0.4.2"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.16.4",

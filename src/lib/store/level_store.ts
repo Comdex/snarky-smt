@@ -18,24 +18,24 @@ import { FieldElements } from '../model';
  * @template V
  */
 export class LevelStore<V extends FieldElements> implements Store<V> {
-  private db: Level<string, any>;
-  private nodesSubLevel: AbstractSublevel<
+  protected db: Level<string, any>;
+  protected nodesSubLevel: AbstractSublevel<
     Level<string, any>,
     string | Buffer | Uint8Array,
     string,
     string
   >;
-  private leavesSubLevel: AbstractSublevel<
+  protected leavesSubLevel: AbstractSublevel<
     Level<string, any>,
     string | Buffer | Uint8Array,
     string,
     string
   >;
-  private operationCache: (
+  protected operationCache: (
     | AbstractBatchPutOperation<Level<string, any>, string, any>
     | AbstractBatchDelOperation<Level<string, any>, string>
   )[];
-  private eltTyp: AsFieldElements<V>;
+  protected eltTyp: AsFieldElements<V>;
 
   /**
    * Creates an instance of LevelStore.
@@ -61,7 +61,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    *
    * @memberof LevelStore
    */
-  clearPrepareOperationCache(): void {
+  public clearPrepareOperationCache(): void {
     this.operationCache = [];
   }
 
@@ -71,7 +71,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {Promise<Field>}
    * @memberof LevelStore
    */
-  async getRoot(): Promise<Field> {
+  public async getRoot(): Promise<Field> {
     const valueStr = await this.nodesSubLevel.get('root');
     return Field(valueStr);
   }
@@ -82,7 +82,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    * @param {Field} root
    * @memberof LevelStore
    */
-  prepareUpdateRoot(root: Field): void {
+  public prepareUpdateRoot(root: Field): void {
     this.operationCache.push({
       type: 'put',
       sublevel: this.nodesSubLevel,
@@ -98,7 +98,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {Promise<Field[]>}
    * @memberof LevelStore
    */
-  async getNodes(key: Field): Promise<Field[]> {
+  public async getNodes(key: Field): Promise<Field[]> {
     const valueStr = await this.nodesSubLevel.get(key.toString());
     return strToFieldArry(valueStr);
   }
@@ -110,7 +110,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    * @param {Field[]} value
    * @memberof LevelStore
    */
-  preparePutNodes(key: Field, value: Field[]): void {
+  public preparePutNodes(key: Field, value: Field[]): void {
     this.operationCache.push({
       type: 'put',
       sublevel: this.nodesSubLevel,
@@ -125,7 +125,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    * @param {Field} key
    * @memberof LevelStore
    */
-  prepareDelNodes(key: Field): void {
+  public prepareDelNodes(key: Field): void {
     this.operationCache.push({
       type: 'del',
       sublevel: this.nodesSubLevel,
@@ -140,7 +140,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {Promise<V>}
    * @memberof LevelStore
    */
-  async getValue(path: Field): Promise<V> {
+  public async getValue(path: Field): Promise<V> {
     const valueStr = await this.leavesSubLevel.get(path.toString());
     let fs = strToFieldArry(valueStr);
     return this.eltTyp.ofFields(fs);
@@ -153,7 +153,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    * @param {V} value
    * @memberof LevelStore
    */
-  preparePutValue(path: Field, value: V): void {
+  public preparePutValue(path: Field, value: V): void {
     const valueStr = value.toFields().toString();
     this.operationCache.push({
       type: 'put',
@@ -169,7 +169,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    * @param {Field} path
    * @memberof LevelStore
    */
-  prepareDelValue(path: Field): void {
+  public prepareDelValue(path: Field): void {
     this.operationCache.push({
       type: 'del',
       sublevel: this.leavesSubLevel,
@@ -183,7 +183,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {Promise<void>}
    * @memberof LevelStore
    */
-  async commit(): Promise<void> {
+  public async commit(): Promise<void> {
     if (this.operationCache.length > 0) {
       await this.db.batch(this.operationCache);
     }
@@ -197,7 +197,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {Promise<void>}
    * @memberof LevelStore
    */
-  async clear(): Promise<void> {
+  public async clear(): Promise<void> {
     await this.nodesSubLevel.clear();
     await this.leavesSubLevel.clear();
   }
@@ -208,7 +208,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {Promise<Map<string, V>>}
    * @memberof LevelStore
    */
-  async getValuesMap(): Promise<Map<string, V>> {
+  public async getValuesMap(): Promise<Map<string, V>> {
     let valuesMap = new Map<string, V>();
     for await (const [key, valueStr] of this.leavesSubLevel.iterator()) {
       let fs = strToFieldArry(valueStr);

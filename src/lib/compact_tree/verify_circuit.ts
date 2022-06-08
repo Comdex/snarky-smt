@@ -1,5 +1,5 @@
 import { Bool, Circuit, CircuitValue, Field, Poseidon } from 'snarkyjs';
-import { SMT_DEPTH } from '../constant';
+import { CP_PADD_VALUE, SMT_DEPTH } from '../constant';
 import { Optional } from '../model';
 import { Hasher } from '../proofs';
 import { CSparseMerkleProof } from './proofs';
@@ -29,42 +29,52 @@ export function verifyProofInCircuit_C<
   optionalValue: Optional<V>,
   hasher: Hasher = Poseidon.hash
 ): Bool {
-  Field(proof.sideNodes.length).assertLte(SMT_DEPTH);
-  Field(proof.nonMembershipLeafData.length).assertEquals(3);
+  Field(proof.sideNodes.length).assertEquals(SMT_DEPTH);
 
   const th = new TreeHasher(hasher);
   const path = th.path(key);
 
   let currentHash: Field;
   const { path: actualPath, leaf: leafHash } = th.parseLeaf(
-    proof.nonMembershipLeafData
+    proof.nonMembershipLeafData.value.nonMembershipLeafData
   );
 
   const valueHash = th.digest(optionalValue.value);
   currentHash = Circuit.if(
-    optionalValue.isSome.not(),
+    optionalValue.isSome,
     Circuit.if(
-      proof.nonMembershipLeafData[0].equals(Field.zero),
-      th.placeholder(),
-      th.digestLeaf(actualPath, leafHash).hash
-    ),
-    Circuit.if(
-      proof.nonMembershipLeafData[0].equals(Field.zero),
+      proof.nonMembershipLeafData.isSome,
       th.placeholder(),
       th.digestLeaf(path, valueHash).hash
+    ),
+    Circuit.if(
+      proof.nonMembershipLeafData.isSome,
+      th.digestLeaf(actualPath, leafHash).hash,
+      th.placeholder()
     )
   );
 
   const pathBits = path.toBits();
   //Recompute root
   let sideNodesLength = proof.sideNodes.length;
+
   for (let i = 0; i < sideNodesLength; i++) {
     let node = proof.sideNodes[i];
 
+    // right node
     currentHash = Circuit.if(
-      pathBits[sideNodesLength - 1 - i],
+      pathBits[sideNodesLength - 1 - i].and(node.equals(CP_PADD_VALUE).not()),
       th.digestNode(node, currentHash).hash,
-      th.digestNode(currentHash, node).hash
+      currentHash
+    );
+
+    // left node
+    currentHash = Circuit.if(
+      pathBits[sideNodesLength - 1 - i]
+        .not()
+        .and(node.equals(CP_PADD_VALUE).not()),
+      th.digestNode(currentHash, node).hash,
+      currentHash
     );
   }
 

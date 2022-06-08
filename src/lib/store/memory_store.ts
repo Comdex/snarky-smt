@@ -21,10 +21,10 @@ const enum OperationType {
  * @template V
  */
 export class MemoryStore<V extends FieldElements> implements Store<V> {
-  private nodesMap: Map<string, Field[]>;
-  private valuesMap: Map<string, V>;
+  protected nodesMap: Map<string, Field[]>;
+  protected valuesMap: Map<string, V>;
 
-  private operationCache: {
+  protected operationCache: {
     opType: OperationType;
     setType: SetType;
     k: string;
@@ -46,7 +46,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    *
    * @memberof MemoryStore
    */
-  clearPrepareOperationCache(): void {
+  public clearPrepareOperationCache(): void {
     this.operationCache = [];
   }
 
@@ -56,7 +56,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {Promise<Field>}
    * @memberof MemoryStore
    */
-  async getRoot(): Promise<Field> {
+  public async getRoot(): Promise<Field> {
     const fs = this.nodesMap.get('root');
     if (fs && fs.length == 1) {
       return fs[0];
@@ -71,7 +71,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    * @param {Field} root
    * @memberof MemoryStore
    */
-  prepareUpdateRoot(root: Field): void {
+  public prepareUpdateRoot(root: Field): void {
     this.operationCache.push({
       opType: OperationType.put,
       setType: SetType.nodes,
@@ -87,7 +87,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {Promise<Field[]>}
    * @memberof MemoryStore
    */
-  async getNodes(key: Field): Promise<Field[]> {
+  public async getNodes(key: Field): Promise<Field[]> {
     let keyStr = key.toString();
     let nodes = this.nodesMap.get(keyStr);
     if (nodes) {
@@ -104,7 +104,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    * @param {Field[]} value
    * @memberof MemoryStore
    */
-  preparePutNodes(key: Field, value: Field[]): void {
+  public preparePutNodes(key: Field, value: Field[]): void {
     this.operationCache.push({
       opType: OperationType.put,
       setType: SetType.nodes,
@@ -119,7 +119,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    * @param {Field} key
    * @memberof MemoryStore
    */
-  prepareDelNodes(key: Field): void {
+  public prepareDelNodes(key: Field): void {
     this.operationCache.push({
       opType: OperationType.del,
       setType: SetType.nodes,
@@ -135,7 +135,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {Promise<V>}
    * @memberof MemoryStore
    */
-  async getValue(path: Field): Promise<V> {
+  public async getValue(path: Field): Promise<V> {
     const pathStr = path.toString();
     const v = this.valuesMap.get(pathStr);
 
@@ -153,7 +153,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    * @param {V} value
    * @memberof MemoryStore
    */
-  preparePutValue(path: Field, value: V): void {
+  public preparePutValue(path: Field, value: V): void {
     this.operationCache.push({
       opType: OperationType.put,
       setType: SetType.values,
@@ -168,7 +168,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    * @param {Field} path
    * @memberof MemoryStore
    */
-  prepareDelValue(path: Field): void {
+  public prepareDelValue(path: Field): void {
     this.operationCache.push({
       opType: OperationType.del,
       setType: SetType.values,
@@ -183,7 +183,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {Promise<void>}
    * @memberof MemoryStore
    */
-  async commit(): Promise<void> {
+  public async commit(): Promise<void> {
     for (let i = 0; i < this.operationCache.length; i++) {
       const v = this.operationCache[i];
       if (v.opType === OperationType.put) {
@@ -217,7 +217,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {Promise<void>}
    * @memberof MemoryStore
    */
-  async clear(): Promise<void> {
+  public async clear(): Promise<void> {
     this.nodesMap.clear();
     this.valuesMap.clear();
   }
@@ -228,7 +228,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {Promise<Map<string, V>>}
    * @memberof MemoryStore
    */
-  async getValuesMap(): Promise<Map<string, V>> {
+  public async getValuesMap(): Promise<Map<string, V>> {
     return this.valuesMap;
   }
 }

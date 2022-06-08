@@ -51,7 +51,7 @@ export class Optional<T extends CircuitValue> extends CircuitValue {
    * @return {*}  {Optional<T>}
    * @memberof Optional
    */
-  static empty<T extends CircuitValue>(
+  public static empty<T extends CircuitValue>(
     valueType: AsFieldElements<T>
   ): Optional<T> {
     const dummy = (() => {
@@ -75,7 +75,7 @@ export class Optional<T extends CircuitValue> extends CircuitValue {
    * @return {*}  {Optional<T>}
    * @memberof Optional
    */
-  static of<T extends CircuitValue>(value: T): Optional<T> {
+  public static of<T extends CircuitValue>(value: T): Optional<T> {
     return new Optional(Bool(true), value);
   }
 }

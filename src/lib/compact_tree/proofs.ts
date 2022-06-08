@@ -5,9 +5,10 @@ import {
   Field,
   isReady,
   Poseidon,
+  prop,
 } from 'snarkyjs';
-import { RIGHT, SMT_DEPTH } from '../constant';
-import { FieldElements } from '../model';
+import { CP_PADD_VALUE, RIGHT, SMT_DEPTH } from '../constant';
+import { FieldElements, Optional } from '../model';
 import { Hasher } from '../proofs';
 import { TreeHasher } from './tree_hasher';
 
@@ -22,17 +23,42 @@ await isReady;
  */
 export class CSparseMerkleProof extends CircuitValue {
   @arrayProp(Field, SMT_DEPTH) sideNodes: Field[];
-  @arrayProp(Field, 3) nonMembershipLeafData: Field[];
-  @arrayProp(Field, 3) siblingData: Field[];
+  @prop nonMembershipLeafData: Optional<NonMembershipLeafData>;
+  @prop siblingData: Optional<SiblingData>;
 
   constructor(
     sideNodes: Field[],
-    nonMembershipLeafData: Field[],
-    siblingData: Field[]
+    nonMembershipLeafData: Optional<NonMembershipLeafData>,
+    siblingData: Optional<SiblingData>
   ) {
     super();
+
+    // padd with CP_PADD_VALUE to a fixed length
+    let paddSize = SMT_DEPTH - sideNodes.length;
+    for (let i = 0; i < paddSize; i++) {
+      sideNodes.push(CP_PADD_VALUE);
+    }
+
     this.sideNodes = sideNodes;
     this.nonMembershipLeafData = nonMembershipLeafData;
+    this.siblingData = siblingData;
+  }
+}
+
+export class NonMembershipLeafData extends CircuitValue {
+  @arrayProp(Field, 3) nonMembershipLeafData: Field[];
+
+  constructor(nonMembershipLeafData: Field[]) {
+    super();
+    this.nonMembershipLeafData = nonMembershipLeafData;
+  }
+}
+
+export class SiblingData extends CircuitValue {
+  @arrayProp(Field, 3) siblingData: Field[];
+
+  constructor(siblingData: Field[]) {
+    super();
     this.siblingData = siblingData;
   }
 }
@@ -45,10 +71,10 @@ export class CSparseMerkleProof extends CircuitValue {
  */
 export interface CSparseCompactMerkleProof {
   sideNodes: Field[];
-  nonMembershipLeafData: Field[];
+  nonMembershipLeafData: Optional<NonMembershipLeafData>;
   bitMask: Field;
   numSideNodes: number;
-  siblingData: Field[];
+  siblingData: Optional<SiblingData>;
 }
 
 /**
@@ -99,11 +125,11 @@ export function verifyProofWithUpdates_C<
   let currentData: Field[];
   if (value === undefined) {
     //Non-membership proof
-    if (th.isEmptyData(proof.nonMembershipLeafData)) {
+    if (proof.nonMembershipLeafData.isSome.not().toBoolean()) {
       currentHash = th.placeholder();
     } else {
       const { path: actualPath, leaf: valueHash } = th.parseLeaf(
-        proof.nonMembershipLeafData
+        proof.nonMembershipLeafData.value.nonMembershipLeafData
       );
       if (actualPath.equals(path).toBoolean()) {
         return {
@@ -132,6 +158,10 @@ export function verifyProofWithUpdates_C<
   let sideNodesLength = proof.sideNodes.length;
   for (let i = 0; i < sideNodesLength; i++) {
     let node = proof.sideNodes[i];
+    if (node.equals(CP_PADD_VALUE).toBoolean()) {
+      break;
+    }
+
     if (pathBits[sideNodesLength - 1 - i].toBoolean() === RIGHT) {
       const result = th.digestNode(node, currentHash);
       currentHash = result.hash;
@@ -197,10 +227,16 @@ export function compactProof_C(
   const th = new TreeHasher(hasher);
   const sideNodes = proof.sideNodes;
   const sideNodesLength = sideNodes.length;
-  let bits = Array<Bool>(sideNodesLength).fill(Bool(false));
+  let bits = Array<Bool>(SMT_DEPTH).fill(Bool(false));
 
   let compactedSideNodes = [];
+  let oriSideNodesLength = 0;
   for (let i = 0; i < sideNodesLength; i++) {
+    if (sideNodes[i].equals(CP_PADD_VALUE).toBoolean()) {
+      break;
+    }
+
+    oriSideNodesLength++;
     if (sideNodes[i].equals(th.placeholder()).toBoolean()) {
       bits[i] = Bool(true);
     } else {
@@ -212,7 +248,7 @@ export function compactProof_C(
     sideNodes: compactedSideNodes,
     nonMembershipLeafData: proof.nonMembershipLeafData,
     bitMask: Field.ofBits(bits),
-    numSideNodes: proof.sideNodes.length,
+    numSideNodes: oriSideNodesLength,
     siblingData: proof.siblingData,
   };
 }

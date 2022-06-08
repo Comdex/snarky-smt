@@ -1,6 +1,6 @@
 import { Field, Poseidon } from 'snarkyjs';
 import { ERR_KEY_ALREADY_EMPTY, RIGHT, SMT_DEPTH } from '../constant';
-import { FieldElements } from '../model';
+import { FieldElements, Optional } from '../model';
 import { Hasher } from '../proofs';
 import { Store } from '../store/store';
 import { countCommonPrefix } from '../utils';
@@ -8,6 +8,8 @@ import {
   compactProof_C,
   CSparseCompactMerkleProof,
   CSparseMerkleProof,
+  NonMembershipLeafData,
+  SiblingData,
 } from './proofs';
 import { TreeHasher } from './tree_hasher';
 
@@ -23,9 +25,9 @@ export class CSparseMerkleTree<
   K extends FieldElements,
   V extends FieldElements
 > {
-  private th: TreeHasher<K, V>;
-  private store: Store<V>;
-  private root: Field;
+  protected th: TreeHasher<K, V>;
+  protected store: Store<V>;
+  protected root: Field;
 
   /**
    * Creates an instance of CSparseMerkleTree.
@@ -55,7 +57,10 @@ export class CSparseMerkleTree<
    * @return {*}  {Promise<CSparseMerkleTree<K, V>>}
    * @memberof CSparseMerkleTree
    */
-  static async importTree<K extends FieldElements, V extends FieldElements>(
+  public static async importTree<
+    K extends FieldElements,
+    V extends FieldElements
+  >(
     store: Store<V>,
     hasher: Hasher = Poseidon.hash
   ): Promise<CSparseMerkleTree<K, V>> {
@@ -72,7 +77,7 @@ export class CSparseMerkleTree<
    * @return {*}  {Field}
    * @memberof CSparseMerkleTree
    */
-  getRoot(): Field {
+  public getRoot(): Field {
     return this.root;
   }
 
@@ -82,7 +87,7 @@ export class CSparseMerkleTree<
    * @return {*}  {TreeHasher<K, V>}
    * @memberof CSparseMerkleTree
    */
-  getTreeHasher(): TreeHasher<K, V> {
+  public getTreeHasher(): TreeHasher<K, V> {
     return this.th;
   }
 
@@ -92,7 +97,7 @@ export class CSparseMerkleTree<
    * @return {*}  {Store<V>}
    * @memberof CSparseMerkleTree
    */
-  getStore(): Store<V> {
+  public getStore(): Store<V> {
     return this.store;
   }
 
@@ -103,7 +108,7 @@ export class CSparseMerkleTree<
    * @return {*}  {Promise<void>}
    * @memberof CSparseMerkleTree
    */
-  async setRoot(root: Field): Promise<void> {
+  public async setRoot(root: Field): Promise<void> {
     this.store.clearPrepareOperationCache();
     this.store.prepareUpdateRoot(root);
     await this.store.commit();
@@ -116,7 +121,7 @@ export class CSparseMerkleTree<
    * @return {*}  {number}
    * @memberof CSparseMerkleTree
    */
-  depth(): number {
+  public depth(): number {
     return SMT_DEPTH;
   }
 
@@ -126,7 +131,7 @@ export class CSparseMerkleTree<
    * @return {*}  {Promise<void>}
    * @memberof CSparseMerkleTree
    */
-  async clear(): Promise<void> {
+  public async clear(): Promise<void> {
     await this.store.clear();
   }
 
@@ -137,7 +142,7 @@ export class CSparseMerkleTree<
    * @return {*}  {(Promise<V | null>)}
    * @memberof CSparseMerkleTree
    */
-  async get(key: K): Promise<V | null> {
+  public async get(key: K): Promise<V | null> {
     if (this.root.equals(this.th.placeholder()).toBoolean()) {
       throw new Error('Key does not exist');
     }
@@ -153,7 +158,7 @@ export class CSparseMerkleTree<
    * @return {*}  {Promise<boolean>}
    * @memberof CSparseMerkleTree
    */
-  async has(key: K): Promise<boolean> {
+  public async has(key: K): Promise<boolean> {
     const v = await this.get(key);
     if (v === null) {
       return false;
@@ -170,7 +175,7 @@ export class CSparseMerkleTree<
    * @return {*}  {Promise<Field>}
    * @memberof CSparseMerkleTree
    */
-  async update(key: K, value?: V): Promise<Field> {
+  public async update(key: K, value?: V): Promise<Field> {
     this.store.clearPrepareOperationCache();
     const newRoot = await this.updateForRoot(this.root, key, value);
     this.store.prepareUpdateRoot(newRoot);
@@ -186,7 +191,7 @@ export class CSparseMerkleTree<
    * @return {*}  {Promise<Field>}
    * @memberof CSparseMerkleTree
    */
-  async updateAll(kvs: { key: K; value?: V }[]): Promise<Field> {
+  public async updateAll(kvs: { key: K; value?: V }[]): Promise<Field> {
     this.store.clearPrepareOperationCache();
     let newRoot: Field = this.root;
     for (let i = 0; i < kvs.length; i++) {
@@ -206,7 +211,7 @@ export class CSparseMerkleTree<
    * @return {*}  {Promise<Field>}
    * @memberof CSparseMerkleTree
    */
-  async delete(key: K): Promise<Field> {
+  public async delete(key: K): Promise<Field> {
     return this.update(key);
   }
 
@@ -217,7 +222,7 @@ export class CSparseMerkleTree<
    * @return {*}  {Promise<CSparseMerkleProof>}
    * @memberof CSparseMerkleTree
    */
-  async prove(key: K): Promise<CSparseMerkleProof> {
+  public async prove(key: K): Promise<CSparseMerkleProof> {
     return await this.doProveForRoot(this.root, key, false);
   }
 
@@ -228,7 +233,7 @@ export class CSparseMerkleTree<
    * @return {*}  {Promise<CSparseMerkleProof>}
    * @memberof CSparseMerkleTree
    */
-  async proveUpdatable(key: K): Promise<CSparseMerkleProof> {
+  public async proveUpdatable(key: K): Promise<CSparseMerkleProof> {
     return await this.doProveForRoot(this.root, key, true);
   }
 
@@ -239,11 +244,11 @@ export class CSparseMerkleTree<
    * @return {*}  {Promise<CSparseCompactMerkleProof>}
    * @memberof CSparseMerkleTree
    */
-  async proveCompact(key: K): Promise<CSparseCompactMerkleProof> {
+  public async proveCompact(key: K): Promise<CSparseCompactMerkleProof> {
     return await this.proveCompactForRoot(this.root, key);
   }
 
-  private async proveCompactForRoot(
+  protected async proveCompactForRoot(
     root: Field,
     key: K
   ): Promise<CSparseCompactMerkleProof> {
@@ -251,7 +256,7 @@ export class CSparseMerkleTree<
     return compactProof_C(proof, this.th.getHasher());
   }
 
-  private async doProveForRoot(
+  protected async doProveForRoot(
     root: Field,
     key: K,
     isUpdatable: boolean
@@ -265,26 +270,36 @@ export class CSparseMerkleTree<
       siblingData,
     } = await this.sideNodesForRoot(path, root, isUpdatable);
 
-    let nonMembershipLeafData = this.th.emptyData(); // set default empty data
+    let nonMembershipLeafData = Optional.empty<NonMembershipLeafData>(
+      NonMembershipLeafData
+    ); // set default empty data
 
     if (pathNodes[0].equals(this.th.placeholder()).not().toBoolean()) {
       const { path: actualPath } = this.th.parseLeaf(leafData!);
       if (actualPath.equals(path).not().toBoolean()) {
-        nonMembershipLeafData = leafData!;
+        nonMembershipLeafData = Optional.of<NonMembershipLeafData>(
+          new NonMembershipLeafData(leafData!)
+        );
       }
     }
 
-    if (siblingData === null) {
-      siblingData = this.th.emptyData();
+    let siblingDataObj = Optional.empty<SiblingData>(SiblingData);
+    if (siblingData !== null) {
+      siblingDataObj = Optional.of<SiblingData>(new SiblingData(siblingData));
     }
+
     return new CSparseMerkleProof(
       sideNodes,
       nonMembershipLeafData,
-      siblingData
+      siblingDataObj
     );
   }
 
-  private async updateForRoot(root: Field, key: K, value?: V): Promise<Field> {
+  protected async updateForRoot(
+    root: Field,
+    key: K,
+    value?: V
+  ): Promise<Field> {
     const path = this.th.path(key);
 
     let {
@@ -325,7 +340,7 @@ export class CSparseMerkleTree<
     return newRoot!;
   }
 
-  private async deleteWithSideNodes(
+  protected async deleteWithSideNodes(
     path: Field,
     sideNodes: Field[],
     pathNodes: Field[],
@@ -387,7 +402,7 @@ export class CSparseMerkleTree<
     return currentHash;
   }
 
-  private updateWithSideNodes(
+  protected updateWithSideNodes(
     path: Field,
     value: V,
     sideNodes: Field[],
@@ -480,7 +495,7 @@ export class CSparseMerkleTree<
     return currentHash;
   }
 
-  private async sideNodesForRoot(
+  protected async sideNodesForRoot(
     path: Field,
     root: Field,
     getSiblingData: boolean

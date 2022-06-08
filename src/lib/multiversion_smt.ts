@@ -22,9 +22,9 @@ export class MultiVersionSparseMerkleTree<
   K extends FieldElements,
   V extends FieldElements
 > {
-  private root: Field;
-  private store: Store<V>;
-  private hasher: Hasher;
+  protected root: Field;
+  protected store: Store<V>;
+  protected hasher: Hasher;
 
   /**
    * Build a new multiversion sparse merkle tree
@@ -37,7 +37,10 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {Promise<MultiVersionSparseMerkleTree<K, V>>}
    * @memberof MultiVersionSparseMerkleTree
    */
-  static async buildNewTree<K extends FieldElements, V extends FieldElements>(
+  public static async buildNewTree<
+    K extends FieldElements,
+    V extends FieldElements
+  >(
     store: Store<V>,
     hasher: Hasher = Poseidon.hash
   ): Promise<MultiVersionSparseMerkleTree<K, V>> {
@@ -67,7 +70,10 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {Promise<MultiVersionSparseMerkleTree<K, V>>}
    * @memberof MultiVersionSparseMerkleTree
    */
-  static async importTree<K extends FieldElements, V extends FieldElements>(
+  public static async importTree<
+    K extends FieldElements,
+    V extends FieldElements
+  >(
     store: Store<V>,
     hasher: Hasher = Poseidon.hash
   ): Promise<MultiVersionSparseMerkleTree<K, V>> {
@@ -88,7 +94,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {Field}
    * @memberof MultiVersionSparseMerkleTree
    */
-  getRoot(): Field {
+  public getRoot(): Field {
     return this.root;
   }
 
@@ -98,7 +104,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {boolean}
    * @memberof MultiVersionSparseMerkleTree
    */
-  isEmpty(): boolean {
+  public isEmpty(): boolean {
     let emptyRoot = defaultNodes(this.hasher)[0];
     return this.root.equals(emptyRoot).toBoolean();
   }
@@ -109,7 +115,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {number}
    * @memberof MultiVersionSparseMerkleTree
    */
-  depth(): number {
+  public depth(): number {
     return SMT_DEPTH;
   }
 
@@ -119,7 +125,7 @@ export class MultiVersionSparseMerkleTree<
    * @param {Field} root
    * @memberof MultiVersionSparseMerkleTree
    */
-  async setRoot(root: Field) {
+  public async setRoot(root: Field) {
     this.store.clearPrepareOperationCache();
     this.store.prepareUpdateRoot(root);
     await this.store.commit();
@@ -132,7 +138,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {Store<V>}
    * @memberof MultiVersionSparseMerkleTree
    */
-  getStore(): Store<V> {
+  public getStore(): Store<V> {
     return this.store;
   }
 
@@ -142,7 +148,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {Hasher}
    * @memberof MultiVersionSparseMerkleTree
    */
-  getHasher(): Hasher {
+  public getHasher(): Hasher {
     return this.hasher;
   }
 
@@ -153,7 +159,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {(Promise<V | null>)}
    * @memberof MultiVersionSparseMerkleTree
    */
-  async get(key: K): Promise<V | null> {
+  public async get(key: K): Promise<V | null> {
     return await this.getForRoot(this.root, key);
   }
 
@@ -165,7 +171,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {(Promise<V | null>)}
    * @memberof MultiVersionSparseMerkleTree
    */
-  async getForRoot(root: Field, key: K): Promise<V | null> {
+  public async getForRoot(root: Field, key: K): Promise<V | null> {
     if (this.isEmpty()) {
       throw new Error('Key does not exist');
     }
@@ -202,7 +208,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {Promise<boolean>}
    * @memberof MultiVersionSparseMerkleTree
    */
-  async has(key: K): Promise<boolean> {
+  public async has(key: K): Promise<boolean> {
     const v = await this.get(key);
     if (v === null) {
       return false;
@@ -217,7 +223,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {Promise<void>}
    * @memberof MultiVersionSparseMerkleTree
    */
-  async clear(): Promise<void> {
+  public async clear(): Promise<void> {
     await this.store.clear();
   }
 
@@ -228,7 +234,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {Promise<Field>}
    * @memberof MultiVersionSparseMerkleTree
    */
-  async delete(key: K): Promise<Field> {
+  public async delete(key: K): Promise<Field> {
     return await this.update(key);
   }
 
@@ -240,7 +246,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {Promise<Field>}
    * @memberof MultiVersionSparseMerkleTree
    */
-  async update(key: K, value?: V): Promise<Field> {
+  public async update(key: K, value?: V): Promise<Field> {
     this.store.clearPrepareOperationCache();
     const newRoot = await this.updateForRoot(this.root, key, value);
     this.store.prepareUpdateRoot(newRoot);
@@ -257,7 +263,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {Promise<Field>}
    * @memberof MultiVersionSparseMerkleTree
    */
-  async updateAll(kvs: { key: K; value?: V }[]): Promise<Field> {
+  public async updateAll(kvs: { key: K; value?: V }[]): Promise<Field> {
     this.store.clearPrepareOperationCache();
     let newRoot: Field = this.root;
     for (let i = 0; i < kvs.length; i++) {
@@ -277,7 +283,7 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {Promise<SparseMerkleProof>}
    * @memberof MultiVersionSparseMerkleTree
    */
-  async prove(key: K): Promise<SparseMerkleProof> {
+  public async prove(key: K): Promise<SparseMerkleProof> {
     return await this.proveForRoot(this.root, key);
   }
 
@@ -288,16 +294,20 @@ export class MultiVersionSparseMerkleTree<
    * @return {*}  {Promise<SparseCompactMerkleProof>}
    * @memberof MultiVersionSparseMerkleTree
    */
-  async proveCompact(key: K): Promise<SparseCompactMerkleProof> {
+  public async proveCompact(key: K): Promise<SparseCompactMerkleProof> {
     const proof = await this.prove(key);
     return compactProof(proof, this.hasher);
   }
 
-  private digest(data: Field[]): Field {
+  protected digest(data: Field[]): Field {
     return this.hasher(data);
   }
 
-  private async updateForRoot(root: Field, key: K, value?: V): Promise<Field> {
+  protected async updateForRoot(
+    root: Field,
+    key: K,
+    value?: V
+  ): Promise<Field> {
     const path = this.digest(key.toFields());
     const { sideNodes, leafData } = await this.sideNodesForRoot(root, path);
 
@@ -310,7 +320,7 @@ export class MultiVersionSparseMerkleTree<
     return newRoot;
   }
 
-  private updateWithSideNodes(
+  protected updateWithSideNodes(
     sideNodes: Field[],
     oldLeafData: Field,
     path: Field,
@@ -349,7 +359,7 @@ export class MultiVersionSparseMerkleTree<
     return currentHash;
   }
 
-  private async sideNodesForRoot(
+  protected async sideNodesForRoot(
     root: Field,
     path: Field
   ): Promise<{ sideNodes: Field[]; pathNodes: Field[]; leafData: Field }> {
@@ -388,7 +398,10 @@ export class MultiVersionSparseMerkleTree<
     };
   }
 
-  private async proveForRoot(root: Field, key: K): Promise<SparseMerkleProof> {
+  protected async proveForRoot(
+    root: Field,
+    key: K
+  ): Promise<SparseMerkleProof> {
     const path = this.digest(key.toFields());
     const { sideNodes } = await this.sideNodesForRoot(root, path);
 

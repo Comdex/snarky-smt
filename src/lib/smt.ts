@@ -22,9 +22,9 @@ export class SparseMerkleTree<
   K extends FieldElements,
   V extends FieldElements
 > {
-  private root: Field;
-  private store: Store<V>;
-  private hasher: Hasher;
+  protected root: Field;
+  protected store: Store<V>;
+  protected hasher: Hasher;
 
   /**
    * Build a new sparse merkle tree
@@ -37,7 +37,10 @@ export class SparseMerkleTree<
    * @return {*}  {Promise<SparseMerkleTree<K, V>>}
    * @memberof SparseMerkleTree
    */
-  static async buildNewTree<K extends FieldElements, V extends FieldElements>(
+  public static async buildNewTree<
+    K extends FieldElements,
+    V extends FieldElements
+  >(
     store: Store<V>,
     hasher: Hasher = Poseidon.hash
   ): Promise<SparseMerkleTree<K, V>> {
@@ -67,7 +70,10 @@ export class SparseMerkleTree<
    * @return {*}  {Promise<SparseMerkleTree<K, V>>}
    * @memberof SparseMerkleTree
    */
-  static async importTree<K extends FieldElements, V extends FieldElements>(
+  public static async importTree<
+    K extends FieldElements,
+    V extends FieldElements
+  >(
     store: Store<V>,
     hasher: Hasher = Poseidon.hash
   ): Promise<SparseMerkleTree<K, V>> {
@@ -88,7 +94,7 @@ export class SparseMerkleTree<
    * @return {*}  {Field}
    * @memberof SparseMerkleTree
    */
-  getRoot(): Field {
+  public getRoot(): Field {
     return this.root;
   }
 
@@ -98,7 +104,7 @@ export class SparseMerkleTree<
    * @return {*}  {boolean}
    * @memberof SparseMerkleTree
    */
-  isEmpty(): boolean {
+  public isEmpty(): boolean {
     const emptyRoot = defaultNodes(this.hasher)[0];
     return this.root.equals(emptyRoot).toBoolean();
   }
@@ -109,7 +115,7 @@ export class SparseMerkleTree<
    * @return {*}  {number}
    * @memberof SparseMerkleTree
    */
-  depth(): number {
+  public depth(): number {
     return SMT_DEPTH;
   }
 
@@ -119,7 +125,7 @@ export class SparseMerkleTree<
    * @param {Field} root
    * @memberof SparseMerkleTree
    */
-  async setRoot(root: Field) {
+  public async setRoot(root: Field) {
     this.store.clearPrepareOperationCache();
     this.store.prepareUpdateRoot(root);
     await this.store.commit();
@@ -132,7 +138,7 @@ export class SparseMerkleTree<
    * @return {*}  {Store<V>}
    * @memberof SparseMerkleTree
    */
-  getStore(): Store<V> {
+  public getStore(): Store<V> {
     return this.store;
   }
 
@@ -142,7 +148,7 @@ export class SparseMerkleTree<
    * @return {*}  {Hasher}
    * @memberof SparseMerkleTree
    */
-  getHasher(): Hasher {
+  public getHasher(): Hasher {
     return this.hasher;
   }
 
@@ -153,7 +159,7 @@ export class SparseMerkleTree<
    * @return {*}  {(Promise<V | null>)}
    * @memberof SparseMerkleTree
    */
-  async get(key: K): Promise<V | null> {
+  public async get(key: K): Promise<V | null> {
     if (this.isEmpty()) {
       throw new Error('Key does not exist');
     }
@@ -169,7 +175,7 @@ export class SparseMerkleTree<
    * @return {*}  {Promise<boolean>}
    * @memberof SparseMerkleTree
    */
-  async has(key: K): Promise<boolean> {
+  public async has(key: K): Promise<boolean> {
     const v = await this.get(key);
     if (v === null) {
       return false;
@@ -184,7 +190,7 @@ export class SparseMerkleTree<
    * @return {*}  {Promise<void>}
    * @memberof SparseMerkleTree
    */
-  async clear(): Promise<void> {
+  public async clear(): Promise<void> {
     await this.store.clear();
   }
 
@@ -195,7 +201,7 @@ export class SparseMerkleTree<
    * @return {*}  {Promise<Field>}
    * @memberof SparseMerkleTree
    */
-  async delete(key: K): Promise<Field> {
+  public async delete(key: K): Promise<Field> {
     return await this.update(key);
   }
 
@@ -207,7 +213,7 @@ export class SparseMerkleTree<
    * @return {*}  {Promise<Field>}
    * @memberof SparseMerkleTree
    */
-  async update(key: K, value?: V): Promise<Field> {
+  public async update(key: K, value?: V): Promise<Field> {
     this.store.clearPrepareOperationCache();
     const newRoot = await this.updateForRoot(this.root, key, value);
     this.store.prepareUpdateRoot(newRoot);
@@ -224,7 +230,7 @@ export class SparseMerkleTree<
    * @return {*}  {Promise<Field>}
    * @memberof SparseMerkleTree
    */
-  async updateAll(kvs: { key: K; value?: V }[]): Promise<Field> {
+  public async updateAll(kvs: { key: K; value?: V }[]): Promise<Field> {
     this.store.clearPrepareOperationCache();
     let newRoot: Field = this.root;
     for (let i = 0; i < kvs.length; i++) {
@@ -244,7 +250,7 @@ export class SparseMerkleTree<
    * @return {*}  {Promise<SparseMerkleProof>}
    * @memberof SparseMerkleTree
    */
-  async prove(key: K): Promise<SparseMerkleProof> {
+  public async prove(key: K): Promise<SparseMerkleProof> {
     return await this.proveForRoot(this.root, key);
   }
 
@@ -255,16 +261,20 @@ export class SparseMerkleTree<
    * @return {*}  {Promise<SparseCompactMerkleProof>}
    * @memberof SparseMerkleTree
    */
-  async proveCompact(key: K): Promise<SparseCompactMerkleProof> {
+  public async proveCompact(key: K): Promise<SparseCompactMerkleProof> {
     const proof = await this.prove(key);
     return compactProof(proof, this.hasher);
   }
 
-  private digest(data: Field[]): Field {
+  protected digest(data: Field[]): Field {
     return this.hasher(data);
   }
 
-  private async updateForRoot(root: Field, key: K, value?: V): Promise<Field> {
+  protected async updateForRoot(
+    root: Field,
+    key: K,
+    value?: V
+  ): Promise<Field> {
     const path = this.digest(key.toFields());
     const { sideNodes, pathNodes, leafData } = await this.sideNodesForRoot(
       root,
@@ -281,7 +291,7 @@ export class SparseMerkleTree<
     return newRoot;
   }
 
-  private updateWithSideNodes(
+  protected updateWithSideNodes(
     sideNodes: Field[],
     pathNodes: Field[],
     oldLeafData: Field,
@@ -326,7 +336,7 @@ export class SparseMerkleTree<
     return currentHash;
   }
 
-  private async sideNodesForRoot(
+  protected async sideNodesForRoot(
     root: Field,
     path: Field
   ): Promise<{ sideNodes: Field[]; pathNodes: Field[]; leafData: Field }> {
@@ -365,7 +375,10 @@ export class SparseMerkleTree<
     };
   }
 
-  private async proveForRoot(root: Field, key: K): Promise<SparseMerkleProof> {
+  protected async proveForRoot(
+    root: Field,
+    key: K
+  ): Promise<SparseMerkleProof> {
     const path = this.digest(key.toFields());
     const { sideNodes } = await this.sideNodesForRoot(root, path);
 

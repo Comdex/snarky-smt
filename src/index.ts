@@ -36,12 +36,6 @@ export { SMT_EMPTY_VALUE } from './lib/constant';
 
 export { CSparseMerkleTree } from './lib/compact_tree/smt';
 export { CDeepSparseMerkleSubTree } from './lib/compact_tree/deep_subtree';
-export {
-  CSparseMerkleProof,
-  CSparseCompactMerkleProof,
-  verifyCompactProof_C,
-  verifyProof_C,
-  compactProof_C,
-  decompactProof_C,
-} from './lib/compact_tree/proofs';
+export * from './lib/compact_tree/proofs';
+export * from './lib/compact_tree/verify_circuit';
 export { TreeHasher } from './lib/compact_tree/tree_hasher';

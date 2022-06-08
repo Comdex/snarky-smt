@@ -14,6 +14,12 @@ npm install --save snarky-smt
 yarn add snarky-smt
 ```
 
+# Update
+
+```
+0.1.5: Add support for verifying CompactSparseMerkle proof in circuit.
+```
+
 # Usage
 
 ```typescript
