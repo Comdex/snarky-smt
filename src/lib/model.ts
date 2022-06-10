@@ -84,4 +84,5 @@ export class Optional<T extends CircuitValue> extends CircuitValue {
 export type SparseCompactMerkleProofJSONValue = {
   sideNodes: string[];
   bitMask: string;
+  root: string;
 };

@@ -25,23 +25,25 @@ export class CSparseMerkleProof extends CircuitValue {
   @arrayProp(Field, SMT_DEPTH) sideNodes: Field[];
   @prop nonMembershipLeafData: Optional<NonMembershipLeafData>;
   @prop siblingData: Optional<SiblingData>;
+  @prop root: Field;
 
   constructor(
     sideNodes: Field[],
     nonMembershipLeafData: Optional<NonMembershipLeafData>,
-    siblingData: Optional<SiblingData>
+    siblingData: Optional<SiblingData>,
+    root: Field
   ) {
     super();
 
     // padd with CP_PADD_VALUE to a fixed length
-    let paddSize = SMT_DEPTH - sideNodes.length;
-    for (let i = 0; i < paddSize; i++) {
+    for (let i = sideNodes.length; i < SMT_DEPTH; i++) {
       sideNodes.push(CP_PADD_VALUE);
     }
 
     this.sideNodes = sideNodes;
     this.nonMembershipLeafData = nonMembershipLeafData;
     this.siblingData = siblingData;
+    this.root = root;
   }
 }
 
@@ -75,6 +77,7 @@ export interface CSparseCompactMerkleProof {
   bitMask: Field;
   numSideNodes: number;
   siblingData: Optional<SiblingData>;
+  root: Field;
 }
 
 /**
@@ -202,6 +205,10 @@ export function verifyProof_C<K extends FieldElements, V extends FieldElements>(
   value?: V,
   hasher: Hasher = Poseidon.hash
 ): boolean {
+  if (proof.root.equals(root).not().toBoolean()) {
+    return false;
+  }
+
   const { ok } = verifyProofWithUpdates_C<K, V>(
     proof,
     root,
@@ -250,6 +257,7 @@ export function compactProof_C(
     bitMask: Field.ofBits(bits),
     numSideNodes: oriSideNodesLength,
     siblingData: proof.siblingData,
+    root: proof.root,
   };
 }
 
@@ -282,6 +290,7 @@ export function decompactProof_C(
   return new CSparseMerkleProof(
     decompactedSideNodes,
     proof.nonMembershipLeafData,
-    proof.siblingData
+    proof.siblingData,
+    proof.root
   );
 }

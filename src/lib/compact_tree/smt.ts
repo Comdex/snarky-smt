@@ -291,7 +291,8 @@ export class CSparseMerkleTree<
     return new CSparseMerkleProof(
       sideNodes,
       nonMembershipLeafData,
-      siblingDataObj
+      siblingDataObj,
+      root
     );
   }
 

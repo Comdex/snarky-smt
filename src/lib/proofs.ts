@@ -5,6 +5,7 @@ import {
   Field,
   isReady,
   Poseidon,
+  prop,
 } from 'snarkyjs';
 import { RIGHT, SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
 import { defaultNodes } from './default_nodes';
@@ -24,10 +25,12 @@ await isReady;
  */
 export class SparseMerkleProof extends CircuitValue {
   @arrayProp(Field, SMT_DEPTH) sideNodes: Field[];
+  @prop root: Field;
 
-  constructor(sideNodes: Field[]) {
+  constructor(sideNodes: Field[], root: Field) {
     super();
     this.sideNodes = sideNodes;
+    this.root = root;
   }
 }
 
@@ -40,6 +43,7 @@ export class SparseMerkleProof extends CircuitValue {
 export interface SparseCompactMerkleProof {
   sideNodes: Field[];
   bitMask: Field;
+  root: Field;
 }
 
 /**
@@ -105,6 +109,9 @@ export function verifyProof<K extends FieldElements, V extends FieldElements>(
   value?: V,
   hasher: Hasher = Poseidon.hash
 ): boolean {
+  if (proof.root.equals(root).not().toBoolean()) {
+    return false;
+  }
   let newRoot = computeRoot<K, V>(proof.sideNodes, key, value, hasher);
 
   return newRoot.equals(root).toBoolean();
@@ -167,6 +174,7 @@ export function compactProof(
   return {
     sideNodes: compactSideNodes,
     bitMask: Field.ofBits(bits),
+    root: proof.root,
   };
 }
 
@@ -199,5 +207,5 @@ export function decompactProof(
     }
   }
 
-  return new SparseMerkleProof(decompactedSideNodes);
+  return new SparseMerkleProof(decompactedSideNodes, proof.root);
 }

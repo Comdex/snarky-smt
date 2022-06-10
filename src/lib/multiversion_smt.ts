@@ -405,6 +405,6 @@ export class MultiVersionSparseMerkleTree<
     const path = this.digest(key.toFields());
     const { sideNodes } = await this.sideNodesForRoot(root, path);
 
-    return new SparseMerkleProof(sideNodes);
+    return new SparseMerkleProof(sideNodes, root);
   }
 }

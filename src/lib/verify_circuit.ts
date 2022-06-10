@@ -27,6 +27,7 @@ export function verifyProofInCircuit<
   optionalValue: Optional<V>,
   hasher: Hasher = Poseidon.hash
 ): Bool {
+  const rootEqual = proof.root.equals(root);
   const currentHash = computeRootInCircuit(
     proof.sideNodes,
     key,
@@ -34,7 +35,7 @@ export function verifyProofInCircuit<
     hasher
   );
 
-  return currentHash.equals(root);
+  return rootEqual.and(currentHash.equals(root));
 }
 
 /**
@@ -100,6 +101,7 @@ export function verifyProofByFieldInCircuit(
   valueHash: Field,
   hasher: Hasher = Poseidon.hash
 ): Bool {
+  const rootEqual = proof.root.equals(root);
   const newRoot = computeRootByFieldInCircuit(
     proof.sideNodes,
     keyHash,
@@ -107,7 +109,7 @@ export function verifyProofByFieldInCircuit(
     hasher
   );
 
-  return newRoot.equals(root);
+  return rootEqual.and(newRoot.equals(root));
 }
 
 /**

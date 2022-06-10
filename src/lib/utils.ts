@@ -21,6 +21,7 @@ export function toCompactProofJSONValue(
   return {
     sideNodes: sideNodesStrArr,
     bitMask: fieldToHexString(proof.bitMask),
+    root: fieldToHexString(proof.root),
   };
 }
 
@@ -43,6 +44,7 @@ export function fromCompactProofJSONValue(
   return {
     sideNodes,
     bitMask: hexStringToField(jsonValue.bitMask),
+    root: hexStringToField(jsonValue.root),
   };
 }
 

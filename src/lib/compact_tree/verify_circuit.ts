@@ -31,6 +31,8 @@ export function verifyProofInCircuit_C<
 ): Bool {
   Field(proof.sideNodes.length).assertEquals(SMT_DEPTH);
 
+  const rootEqual = proof.root.equals(root);
+
   const th = new TreeHasher(hasher);
   const path = th.path(key);
 
@@ -78,5 +80,5 @@ export function verifyProofInCircuit_C<
     );
   }
 
-  return currentHash.equals(root);
+  return rootEqual.and(currentHash.equals(root));
 }
