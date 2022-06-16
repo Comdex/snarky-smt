@@ -201,12 +201,12 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
       }
     }
 
-    console.log(
-      '[commit] current nodes size: ',
-      this.nodesMap.size,
-      ', current values size: ',
-      this.valuesMap.size
-    );
+    // console.log(
+    //   '[commit] current nodes size: ',
+    //   this.nodesMap.size,
+    //   ', current values size: ',
+    //   this.valuesMap.size
+    // );
 
     this.clearPrepareOperationCache();
   }

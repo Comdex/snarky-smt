@@ -144,11 +144,21 @@ export class CSparseMerkleTree<
    */
   public async get(key: K): Promise<V | null> {
     if (this.root.equals(this.th.placeholder()).toBoolean()) {
-      throw new Error('Key does not exist');
+      return null;
     }
 
     const path = this.th.path(key);
-    return await this.store.getValue(path);
+
+    try {
+      const value = await this.store.getValue(path);
+      return value;
+    } catch (err: any) {
+      console.log(err);
+      if (err.code === 'LEVEL_NOT_FOUND') {
+        return null;
+      }
+      throw err;
+    }
   }
 
   /**

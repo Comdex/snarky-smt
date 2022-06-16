@@ -173,7 +173,7 @@ export class MultiVersionSparseMerkleTree<
    */
   public async getForRoot(root: Field, key: K): Promise<V | null> {
     if (this.isEmpty()) {
-      throw new Error('Key does not exist');
+      return null;
     }
 
     const pathBits = this.digest(key.toFields()).toBits();
@@ -198,7 +198,17 @@ export class MultiVersionSparseMerkleTree<
     if (currentHash.equals(SMT_EMPTY_VALUE).toBoolean()) {
       return null;
     }
-    return await this.store.getValue(currentHash);
+
+    try {
+      const value = await this.store.getValue(currentHash);
+      return value;
+    } catch (err: any) {
+      console.log(err);
+      if (err.code === 'LEVEL_NOT_FOUND') {
+        return null;
+      }
+      throw err;
+    }
   }
 
   /**
