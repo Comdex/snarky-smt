@@ -8,7 +8,7 @@ import {
   prop,
 } from 'snarkyjs';
 import { CP_PADD_VALUE, RIGHT, SMT_DEPTH } from '../constant';
-import { FieldElements, Optional } from '../model';
+import { FieldElements } from '../model';
 import { Hasher } from '../proofs';
 import { TreeHasher } from './tree_hasher';
 
@@ -23,14 +23,14 @@ await isReady;
  */
 export class CSparseMerkleProof extends CircuitValue {
   @arrayProp(Field, SMT_DEPTH) sideNodes: Field[];
-  @prop nonMembershipLeafData: Optional<NonMembershipLeafData>;
-  @prop siblingData: Optional<SiblingData>;
+  @arrayProp(Field, 3) nonMembershipLeafData: Field[];
+  @arrayProp(Field, 3) siblingData: Field[];
   @prop root: Field;
 
   constructor(
     sideNodes: Field[],
-    nonMembershipLeafData: Optional<NonMembershipLeafData>,
-    siblingData: Optional<SiblingData>,
+    nonMembershipLeafData: Field[],
+    siblingData: Field[],
     root: Field
   ) {
     super();
@@ -47,24 +47,6 @@ export class CSparseMerkleProof extends CircuitValue {
   }
 }
 
-export class NonMembershipLeafData extends CircuitValue {
-  @arrayProp(Field, 3) nonMembershipLeafData: Field[];
-
-  constructor(nonMembershipLeafData: Field[]) {
-    super();
-    this.nonMembershipLeafData = nonMembershipLeafData;
-  }
-}
-
-export class SiblingData extends CircuitValue {
-  @arrayProp(Field, 3) siblingData: Field[];
-
-  constructor(siblingData: Field[]) {
-    super();
-    this.siblingData = siblingData;
-  }
-}
-
 /**
  * SparseCompactMerkleProof for Compact Sparse Merkle Tree
  *
@@ -73,10 +55,10 @@ export class SiblingData extends CircuitValue {
  */
 export interface CSparseCompactMerkleProof {
   sideNodes: Field[];
-  nonMembershipLeafData: Optional<NonMembershipLeafData>;
+  nonMembershipLeafData: Field[];
   bitMask: Field;
   numSideNodes: number;
-  siblingData: Optional<SiblingData>;
+  siblingData: Field[];
   root: Field;
 }
 
@@ -128,11 +110,11 @@ export function verifyProofWithUpdates_C<
   let currentData: Field[];
   if (value === undefined) {
     //Non-membership proof
-    if (proof.nonMembershipLeafData.isSome.not().toBoolean()) {
+    if (th.isEmptyData(proof.nonMembershipLeafData)) {
       currentHash = th.placeholder();
     } else {
       const { path: actualPath, leaf: valueHash } = th.parseLeaf(
-        proof.nonMembershipLeafData.value.nonMembershipLeafData
+        proof.nonMembershipLeafData
       );
       if (actualPath.equals(path).toBoolean()) {
         return {
@@ -205,10 +187,6 @@ export function verifyProof_C<K extends FieldElements, V extends FieldElements>(
   value?: V,
   hasher: Hasher = Poseidon.hash
 ): boolean {
-  if (proof.root.equals(root).not().toBoolean()) {
-    return false;
-  }
-
   const { ok } = verifyProofWithUpdates_C<K, V>(
     proof,
     root,

@@ -1,12 +1,19 @@
-import { Bool, Circuit, CircuitValue, Field, Poseidon } from 'snarkyjs';
+import {
+  AsFieldElements,
+  Bool,
+  Circuit,
+  CircuitValue,
+  Field,
+  Poseidon,
+} from 'snarkyjs';
 import { CP_PADD_VALUE, SMT_DEPTH } from '../constant';
-import { Optional } from '../model';
 import { Hasher } from '../proofs';
+import { createEmptyValue } from '../utils';
 import { CSparseMerkleProof } from './proofs';
 import { TreeHasher } from './tree_hasher';
 
 /**
- * Since a variable-length array cannot be defined in CircuitValue, it cannot be executed in zkapps temporarily.
+ * Since a variable-length array cannot be defined in CircuitValue, it cannot be implemented temporarily.
  *
  * @export
  * @template K
@@ -26,31 +33,34 @@ export function verifyProofInCircuit_C<
   proof: CSparseMerkleProof,
   root: Field,
   key: K,
-  optionalValue: Optional<V>,
+  value: V,
+  valueType: AsFieldElements<V>,
   hasher: Hasher = Poseidon.hash
 ): Bool {
   Field(proof.sideNodes.length).assertEquals(SMT_DEPTH);
-
   const rootEqual = proof.root.equals(root);
+
+  Field(proof.nonMembershipLeafData.length).assertEquals(3);
 
   const th = new TreeHasher(hasher);
   const path = th.path(key);
 
   let currentHash: Field;
   const { path: actualPath, leaf: leafHash } = th.parseLeaf(
-    proof.nonMembershipLeafData.value.nonMembershipLeafData
+    proof.nonMembershipLeafData
   );
 
-  const valueHash = th.digest(optionalValue.value);
+  const valueHash = th.digest(value);
+  const emptyValue = createEmptyValue<V>(valueType);
   currentHash = Circuit.if(
-    optionalValue.isSome,
+    value.equals(emptyValue).not(),
     Circuit.if(
-      proof.nonMembershipLeafData.isSome,
+      proof.nonMembershipLeafData[0].equals(Field.zero).not(),
       th.placeholder(),
       th.digestLeaf(path, valueHash).hash
     ),
     Circuit.if(
-      proof.nonMembershipLeafData.isSome,
+      proof.nonMembershipLeafData[0].equals(Field.zero).not(),
       th.digestLeaf(actualPath, leafHash).hash,
       th.placeholder()
     )

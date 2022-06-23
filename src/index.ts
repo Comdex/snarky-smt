@@ -1,10 +1,6 @@
 export { SparseMerkleTree } from './lib/smt';
 export { MultiVersionSparseMerkleTree } from './lib/multiversion_smt';
-export {
-  FieldElements,
-  Optional,
-  SparseCompactMerkleProofJSONValue,
-} from './lib/model';
+export { FieldElements, SparseCompactMerkleProofJSON } from './lib/model';
 export {
   SparseMerkleProof,
   SparseCompactMerkleProof,
@@ -24,10 +20,11 @@ export {
 export {
   strToFieldArry,
   printBits,
-  fromCompactProofJSONValue,
-  toCompactProofJSONValue,
+  compactMerkleProofToJson,
+  jsonToCompactMerkleProof,
   fieldToHexString,
   hexStringToField,
+  createEmptyValue,
 } from './lib/utils';
 export { Store } from './lib/store/store';
 export { MemoryStore } from './lib/store/memory_store';

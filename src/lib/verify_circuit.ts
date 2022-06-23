@@ -1,7 +1,14 @@
-import { Bool, Circuit, CircuitValue, Field, Poseidon } from 'snarkyjs';
+import {
+  AsFieldElements,
+  Bool,
+  Circuit,
+  CircuitValue,
+  Field,
+  Poseidon,
+} from 'snarkyjs';
 import { SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
-import { Optional } from './model';
 import { Hasher, SparseMerkleProof } from './proofs';
+import { createEmptyValue } from './utils';
 
 /**
  * Verify a merkle proof in circuit.
@@ -24,14 +31,16 @@ export function verifyProofInCircuit<
   proof: SparseMerkleProof,
   root: Field,
   key: K,
-  optionalValue: Optional<V>,
+  value: V,
+  valueType: AsFieldElements<V>,
   hasher: Hasher = Poseidon.hash
 ): Bool {
   const rootEqual = proof.root.equals(root);
   const currentHash = computeRootInCircuit(
     proof.sideNodes,
     key,
-    optionalValue,
+    value,
+    valueType,
     hasher
   );
 
@@ -57,12 +66,14 @@ export function computeRootInCircuit<
 >(
   sideNodes: Field[],
   key: K,
-  optionalValue: Optional<V>,
+  value: V,
+  valueType: AsFieldElements<V>,
   hasher: Hasher = Poseidon.hash
 ): Field {
+  const emptyValue = createEmptyValue<V>(valueType);
   let currentHash: Field = Circuit.if(
-    optionalValue.isSome,
-    hasher(optionalValue.value.toFields()),
+    value.equals(emptyValue).not(),
+    hasher(value.toFields()),
     SMT_EMPTY_VALUE
   );
 

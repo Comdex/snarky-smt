@@ -22,7 +22,7 @@ export class CDeepSparseMerkleSubTree<
     super(store, root, hasher);
   }
 
-  public async addBranch(proof: CSparseMerkleProof, key: K, value: V) {
+  async addBranch(proof: CSparseMerkleProof, key: K, value: V) {
     const th = this.getTreeHasher();
     const { ok, updates } = verifyProofWithUpdates_C(
       proof,
@@ -44,12 +44,9 @@ export class CDeepSparseMerkleSubTree<
       this.getStore().preparePutNodes(v[0], v[1]);
     });
 
-    if (proof.siblingData.isSome.toBoolean()) {
+    if (!th.isEmptyData(proof.siblingData)) {
       if (proof.sideNodes.length > 0) {
-        this.getStore().preparePutNodes(
-          proof.sideNodes[0],
-          proof.siblingData.value.siblingData
-        );
+        this.getStore().preparePutNodes(proof.sideNodes[0], proof.siblingData);
       }
     }
 

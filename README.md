@@ -14,11 +14,9 @@ npm install --save snarky-smt
 yarn add snarky-smt
 ```
 
-# Update
+# What can you do with this library
 
-```
-0.1.5: Add support for verifying CompactSparseMerkle proof in circuit.
-```
+You can update the data of Sparse Merkle Tree(SMT) outside the circuit, and then verify the existence proof or non-existence proof of the data in the circuit. At the same time, you can also verify the correctness of the state transformation of SMT outside the circuit, which makes us not need to update the SMT in the circuit, but also ensure the legal modification of SMT data outside the circuit. We can verify the validity of data modification through zkapp.
 
 # Usage
 
@@ -45,7 +43,7 @@ import {
   verifyProofByFieldInCircuit,
   verifyProofInCircuit,
   SMT_EMPTY_VALUE,
-  Optional,
+  createEmptyValue
 } from 'snarky-smt';
 
 class Account extends CircuitValue {
@@ -95,15 +93,16 @@ const proof = await smt.prove(testKey);
 
 // Note that only methods whose method name ends with InCircuit can run in zkapps (smart contracts of the mina protocol)
 // Verify the Merkle proof in zkapps (existence merkle proof), isOk should be true.
-let isOk = verifyProofInCircuit(proof, root, testKey, Optional.of(testValue));
+let isOk = verifyProofInCircuit(proof, root, testKey, testValue, Account);
 
 // Non-existence merkle proof, isOk should be false.
-isOk = verifyProofInCircuit(proof, root, testKey, Optional.empty(Account));
+isOk = verifyProofInCircuit(proof, root, testKey, createEmptyValue<Account>(Account), Account);
 
 let newRoot = computeRootInCircuit(
   proof.sideNodes,
   testKey,
-  Optional.of(newValue)
+  newValue,
+  Account
 );
 console.log('newRoot: ', newRoot.toString());
 

@@ -1,6 +1,6 @@
 {
   "name": "snarky-smt",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Sparse Merkle Tree for SnarkyJS",
   "main": "build/module/index.js",
   "typings": "build/module/index.d.ts",

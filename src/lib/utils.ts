@@ -1,6 +1,29 @@
-import { Bool, Field } from 'snarkyjs';
-import { SparseCompactMerkleProofJSONValue } from './model';
+import { AsFieldElements, Bool, CircuitValue, Field } from 'snarkyjs';
+import { SparseCompactMerkleProofJSON } from './model';
 import { SparseCompactMerkleProof } from './proofs';
+
+/**
+ * Create a empty value for a CircuitValue Type
+ *
+ * @export
+ * @template T
+ * @param {AsFieldElements<T>} valueType
+ * @return {*}  {T}
+ */
+export function createEmptyValue<T extends CircuitValue>(
+  valueType: AsFieldElements<T>
+): T {
+  const dummy = (() => {
+    const n = valueType.sizeInFields();
+    const xs = [];
+    for (var i = 0; i < n; ++i) {
+      xs.push(Field.zero);
+    }
+    return valueType.ofFields(xs);
+  })();
+
+  return dummy;
+}
 
 /**
  * Convert SparseCompactMerkleProof to JSONValue
@@ -9,9 +32,9 @@ import { SparseCompactMerkleProof } from './proofs';
  * @param {SparseCompactMerkleProof} proof
  * @return {*}  {SparseCompactMerkleProofJSONValue}
  */
-export function toCompactProofJSONValue(
+export function compactMerkleProofToJson(
   proof: SparseCompactMerkleProof
-): SparseCompactMerkleProofJSONValue {
+): SparseCompactMerkleProofJSON {
   let sideNodesStrArr: string[] = [];
   proof.sideNodes.forEach((v) => {
     const str = fieldToHexString(v);
@@ -32,8 +55,8 @@ export function toCompactProofJSONValue(
  * @param {SparseCompactMerkleProofJSONValue} jsonValue
  * @return {*}  {SparseCompactMerkleProof}
  */
-export function fromCompactProofJSONValue(
-  jsonValue: SparseCompactMerkleProofJSONValue
+export function jsonToCompactMerkleProof(
+  jsonValue: SparseCompactMerkleProofJSON
 ): SparseCompactMerkleProof {
   let sideNodes: Field[] = [];
   jsonValue.sideNodes.forEach((v) => {
