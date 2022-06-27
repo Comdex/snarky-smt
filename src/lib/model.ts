@@ -1,11 +1,4 @@
-import {
-  AsFieldElements,
-  Bool,
-  CircuitValue,
-  Field,
-  JSONValue,
-  prop,
-} from 'snarkyjs';
+import { Field, JSONValue } from 'snarkyjs';
 
 /**
  * The interface is designed to be compatible with both CircuitValue and Field type.

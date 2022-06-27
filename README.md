@@ -8,11 +8,13 @@ This article briefly describes this data structure [Whats a sparse merkle tree](
 
 # Install
 
-```bash
-npm install --save snarky-smt
-# or with yarn:
-yarn add snarky-smt
-```
+1. Install module:
+
+   `npm install snarky-smt`
+
+2. Install peer dependencies:
+
+   `npm install level snarkyjs`
 
 # What can you do with this library
 
