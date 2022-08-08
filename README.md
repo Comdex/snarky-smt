@@ -18,7 +18,7 @@ This article briefly describes this data structure [Whats a sparse merkle tree](
 
 # What can you do with this library
 
-You can update the data of Sparse Merkle Tree(SMT) outside the circuit, and then verify the existence proof or non-existence proof of the data in the circuit. At the same time, you can also verify the correctness of the state transformation of SMT outside the circuit, which makes us not need to update the SMT in the circuit, but also ensure the legal modification of SMT data outside the circuit. We can verify the validity of data modification through zkapp.
+You can update the data of Sparse Merkle Tree(SMT) outside the circuit, and then verify the existence proof or non-existence proof of the data in the circuit. At the same time, you can also verify the correctness of the state transformation of SMT in the circuit, which makes us not need to update the SMT in the circuit, but also ensure the legal modification of SMT data outside the circuit. We can verify the validity of data modification through zkapp.
 
 # Usage
 
