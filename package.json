@@ -68,5 +68,11 @@
   ],
   "prettier": {
     "singleQuote": true
+  },
+  "dependencies": {
+    "@types/orbit-db": "github:orbitdb/orbit-db-types",
+    "ipfs": "^0.63.5",
+    "ipfs-core": "^0.15.4",
+    "orbit-db": "^0.28.6"
   }
 }
