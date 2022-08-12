@@ -65,7 +65,7 @@ class Account extends CircuitValue {
   @prop nonce: UInt32;
 
   constructor(address: PublicKey, balance: UInt64, nonce: UInt32) {
-    super();
+    super(address, balance, nonce);
     this.address = address;
     this.balance = balance;
     this.nonce = nonce;
