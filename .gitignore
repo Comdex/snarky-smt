@@ -8,3 +8,5 @@ coverage
 *.log
 yarn.lock
 db
+
+package-lock.json
