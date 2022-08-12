@@ -10,15 +10,26 @@ This article briefly describes this data structure [Whats a sparse merkle tree](
 
 1. Install module:
 
-   `npm install snarky-smt`
+   ```
+   npm install snarky-smt
+   ```
 
 2. Install peer dependencies:
 
-   `npm install level snarkyjs`
+   ```
+   npm install snarkyjs
+   // If you need to use LevelDB to store data, you will also need to install:
+   npm install level
+   ```
 
 # What can you do with this library
 
 You can update the data of Sparse Merkle Tree(SMT) outside the circuit, and then verify the existence proof or non-existence proof of the data in the circuit. At the same time, you can also verify the correctness of the state transformation of SMT in the circuit, which makes us not need to update the SMT in the circuit, but also ensure the legal modification of SMT data outside the circuit. We can verify the validity of data modification through zkapp.
+
+--------------------------------
+
+This is an example of using snarky-smt in the mina smart contract, modified from the example in the [snarkyjs official repo](https://github.com/o1-labs/snarkyjs): 
+[**merkle_zkapp.ts**](./src/examples/merkle_zkapp.ts)
 
 # Usage
 

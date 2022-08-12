@@ -1,4 +1,4 @@
-import { Field, JSONValue } from 'snarkyjs';
+import { Field } from 'snarkyjs';
 
 /**
  * The interface is designed to be compatible with both CircuitValue and Field type.
@@ -8,7 +8,6 @@ import { Field, JSONValue } from 'snarkyjs';
  */
 export interface FieldElements {
   toFields(): Field[];
-  toJSON(): JSONValue;
 }
 
 // A type used to support serialization to json for SparseCompactMerkleProof

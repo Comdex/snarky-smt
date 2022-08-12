@@ -134,6 +134,20 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
   }
 
   /**
+   * Convert value string to a value of FieldElements type.
+   *
+   * @protected
+   * @param {string} valueStr
+   * @param {AsFieldElements<V>} eltTyp
+   * @return {*}  {V}
+   * @memberof LevelStore
+   */
+  protected strToValue(valueStr: string, eltTyp: AsFieldElements<V>): V {
+    let fs = strToFieldArry(valueStr);
+    return eltTyp.ofFields(fs);
+  }
+
+  /**
    * Get the value for a key. Error is thrown when a key that does not exist is being accessed.
    *
    * @param {Field} path
@@ -142,8 +156,21 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    */
   public async getValue(path: Field): Promise<V> {
     const valueStr = await this.leavesSubLevel.get(path.toString());
-    let fs = strToFieldArry(valueStr);
-    return this.eltTyp.ofFields(fs);
+
+    return this.strToValue(valueStr, this.eltTyp);
+  }
+
+  /**
+   * Serialize the value of the FieldElements type into a string
+   *
+   * @protected
+   * @param {V} value
+   * @return {*}  {string}
+   * @memberof LevelStore
+   */
+  protected valueToStr(value: V): string {
+    const valueStr = value.toFields().toString();
+    return valueStr;
   }
 
   /**
@@ -154,7 +181,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
    * @memberof LevelStore
    */
   public preparePutValue(path: Field, value: V): void {
-    const valueStr = value.toFields().toString();
+    const valueStr = this.valueToStr(value);
     this.operationCache.push({
       type: 'put',
       sublevel: this.leavesSubLevel,
@@ -211,8 +238,7 @@ export class LevelStore<V extends FieldElements> implements Store<V> {
   public async getValuesMap(): Promise<Map<string, V>> {
     let valuesMap = new Map<string, V>();
     for await (const [key, valueStr] of this.leavesSubLevel.iterator()) {
-      let fs = strToFieldArry(valueStr);
-      let value = this.eltTyp.ofFields(fs);
+      const value = this.strToValue(valueStr, this.eltTyp);
       valuesMap.set(key, value);
     }
 
