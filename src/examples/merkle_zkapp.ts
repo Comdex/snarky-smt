@@ -29,6 +29,7 @@ import {
   Party,
   CircuitString,
 } from 'snarkyjs';
+import { SMT_EMPTY_VALUE } from '../lib/constant';
 import { SparseMerkleProof } from '../lib/proofs';
 import { SparseMerkleTree } from '../lib/smt';
 import { MemoryStore } from '../lib/store/memory_store';
@@ -85,6 +86,37 @@ class Leaderboard extends SmartContract {
     this.commitment.set(initialCommitment);
   }
 
+  // If an account with this name does not exist, it is added as a new account (non-existence merkle proof)
+  @method
+  addNewAccount(
+    name: CircuitString,
+    account: Account,
+    merkleProof: SparseMerkleProof
+  ) {
+    // we fetch the on-chain commitment
+    let commitment = this.commitment.get();
+    this.commitment.assertEquals(commitment);
+
+    // We need to prove that the account is not in Merkle Tree.
+    const keyHash = Poseidon.hash(name.toFields());
+    const emptyHash = SMT_EMPTY_VALUE;
+    verifyProofByFieldInCircuit(
+      merkleProof,
+      commitment,
+      keyHash,
+      emptyHash
+    ).assertTrue();
+
+    // add new account
+    let newCommitment = computeRootByFieldInCircuit(
+      merkleProof.sideNodes,
+      keyHash,
+      account.hash()
+    );
+    this.commitment.set(newCommitment);
+  }
+
+  // existence merkle proof
   @method
   guessPreimage(
     guess: Field,
@@ -104,6 +136,14 @@ class Leaderboard extends SmartContract {
     this.commitment.assertEquals(commitment);
 
     // we check that the account is within the committed Merkle Tree
+    // Or you can use generic methods
+    // verifyProofInCircuit<CircuitString, Account>(
+    //     merkleProof,
+    //     commitment,
+    //     name,
+    //     account,
+    //     Account
+    //   ).assertTrue();
     const keyHash = Poseidon.hash(name.toFields());
     const valueHash = account.hash();
     verifyProofByFieldInCircuit(
@@ -117,6 +157,13 @@ class Leaderboard extends SmartContract {
     let newAccount = account.addPoints(1);
 
     // we calculate the new Merkle Root, based on the account changes
+    // Or you can use generic methods
+    // let newCommitment = computeRootInCircuit<CircuitString, Account>(
+    //     merkleProof.sideNodes,
+    //     name,
+    //     newAccount,
+    //     Account
+    //   );
     let newCommitment = computeRootByFieldInCircuit(
       merkleProof.sideNodes,
       keyHash,
@@ -148,12 +195,11 @@ const Olivia = CircuitString.fromString('Olivia');
 let bobAc = new Account(Local.testAccounts[0].publicKey, UInt32.from(0));
 let aliceAc = new Account(Local.testAccounts[1].publicKey, UInt32.from(0));
 let charlieAc = new Account(Local.testAccounts[2].publicKey, UInt32.from(0));
-let oliviaAc = new Account(Local.testAccounts[3].publicKey, UInt32.from(0));
+let oliviaAc = new Account(Local.testAccounts[3].publicKey, UInt32.from(2));
 
 await smt.update(Bob, bobAc);
 await smt.update(Alice, aliceAc);
 await smt.update(Charlie, charlieAc);
-await smt.update(Olivia, oliviaAc);
 
 // now that we got our accounts set up, we need the commitment to deploy our contract!
 initialCommitment = smt.getRoot();
@@ -176,7 +222,27 @@ await makeGuess(Bob, 22);
 
 console.log('Final points: ' + (await smt.get(Bob))?.points);
 
+await addNewAccount(Olivia, oliviaAc);
+
+console.log('Final Olivia points: ' + (await smt.get(Olivia))?.points);
+
 shutdown();
+
+async function addNewAccount(name: CircuitString, account: Account) {
+  let merkleProof = await smt.prove(name);
+
+  let tx = await Mina.transaction(feePayer, () => {
+    leaderboardZkApp.addNewAccount(name, account, merkleProof);
+    if (!doProofs) leaderboardZkApp.sign(zkappKey);
+  });
+  if (doProofs) {
+    await tx.prove();
+  }
+  tx.send();
+
+  await smt.update(name, account!);
+  leaderboardZkApp.commitment.get().assertEquals(smt.getRoot());
+}
 
 async function makeGuess(name: CircuitString, guess: number) {
   let account = await smt.get(name);
