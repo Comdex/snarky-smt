@@ -42,8 +42,6 @@ await isReady;
 
 const doProofs = true;
 
-class MerkleWitness extends Experimental.MerkleWitness(8) {}
-
 class Account extends CircuitValue {
   @prop publicKey: PublicKey;
   @prop points: UInt32;
