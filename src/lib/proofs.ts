@@ -28,7 +28,7 @@ export class SparseMerkleProof extends CircuitValue {
   @prop root: Field;
 
   constructor(sideNodes: Field[], root: Field) {
-    super();
+    super(sideNodes, root);
     this.sideNodes = sideNodes;
     this.root = root;
   }
