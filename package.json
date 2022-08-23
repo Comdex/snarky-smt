@@ -25,6 +25,7 @@
   "type": "module",
   "scripts": {
     "clear": "rm -rf ./build",
+    "example:numindex": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/examples/numindex_merkle_zkapp.js",
     "example": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/examples/merkle_zkapp.js",
     "build:main": "tsc -p tsconfig.json",
     "build:module": "tsc -p tsconfig.module.json",

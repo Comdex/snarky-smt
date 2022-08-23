@@ -1,16 +1,25 @@
 export { SparseMerkleTree } from './lib/smt';
 export { MultiVersionSparseMerkleTree } from './lib/multiversion_smt';
-export { FieldElements, SparseCompactMerkleProofJSON } from './lib/model';
+export { NumIndexSparseMerkleTree } from './lib/numindex_smt';
+export type {
+  FieldElements,
+  SparseCompactMerkleProofJSON,
+  NumIndexSparseCompactMerkleProofJSON,
+} from './lib/model';
 export {
   SparseMerkleProof,
-  SparseCompactMerkleProof,
-  Hasher,
+  type SparseCompactMerkleProof,
+  type Hasher,
   computeRoot,
   verifyProof,
   verifyCompactProof,
   compactProof,
   decompactProof,
+  NumIndexSparseMerkleProof, BaseNumIndexSparseMerkleProof,
+  compactNumIndexProof,
+  decompactNumIndexProof
 } from './lib/proofs';
+export type { NumIndexSparseCompactMerkleProof } from './lib/proofs';
 export {
   verifyProofInCircuit,
   verifyProofByFieldInCircuit,
@@ -21,12 +30,14 @@ export {
   strToFieldArry,
   printBits,
   compactMerkleProofToJson,
+  compactNumIndexMerkleProofToJson,
   jsonToCompactMerkleProof,
+  jsonToNumIndexCompactMerkleProof,
   fieldToHexString,
   hexStringToField,
   createEmptyValue,
 } from './lib/utils';
-export { Store } from './lib/store/store';
+export type { Store } from './lib/store/store';
 export { MemoryStore } from './lib/store/memory_store';
 export { LevelStore } from './lib/store/level_store';
 export { SMT_EMPTY_VALUE } from './lib/constant';

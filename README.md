@@ -1,37 +1,122 @@
 # snarky-smt
 
-Sparse Merkle Tree for SnarkyJs (existence / non-existence merkle proof).
+![npm](https://img.shields.io/npm/v/snarky-smt)
+![node-current](https://img.shields.io/node/v/snarky-smt)
+![Libraries.io dependency status for latest release](https://img.shields.io/librariesio/release/npm/snarky-smt)
+![npm](https://img.shields.io/npm/dm/snarky-smt)
 
-Please note that since currently snarkyjs does not support dynamic-size arrays and plain if statements, only methods for validating merkle tree proofs and computing new state roots (method name ends with InCircuit) can be executed in zkapps(smart contracts of the mina protocol), other methods need to be executed outside of zkapps.
+
+Sparse Merkle Tree for SnarkyJs (membership / non-membership merkle proof).
+
+Please note that since currently snarkyjs does not support dynamic-size arrays and plain if statements, only methods for validating merkle proofs and computing new state roots (method name ends with InCircuit) can be executed in zkApps(smart contracts of the mina protocol), other methods need to be executed outside of zkApps.
 
 This article briefly describes this data structure [Whats a sparse merkle tree](https://medium.com/@kelvinfichter/whats-a-sparse-merkle-tree-acda70aeb837)
 
-# Install
+## Install
 
 1. Install module:
 
-   ```
+   ```bash
    npm install snarky-smt
+   ```
+   or with yarn:
+
+   ```bash
+   yarn add snarky-smt
    ```
 
 2. Install peer dependencies:
 
-   ```
+   ```bash
    npm install snarkyjs
-   // If you need to use LevelDB to store data, you will also need to install:
+   # yarn add snarkyjs
+   ```
+   
+   If you need to use LevelDB to store data, you will also need to install:
+
+   ```bash
    npm install level
+   # yarn add level
    ```
 
-# What can you do with this library
+## What can you do with this library
 
-You can update the data of Sparse Merkle Tree(SMT) outside the circuit, and then verify the existence proof or non-existence proof of the data in the circuit. At the same time, you can also verify the correctness of the state transformation of SMT in the circuit, which makes us not need to update the SMT in the circuit, but also ensure the legal modification of SMT data outside the circuit. We can verify the validity of data modification through zkapp.
+You can update the data of Sparse Merkle Tree(SMT) outside the circuit, and then verify the membership proof or non-membership proof of the data in the circuit. At the same time, you can also verify the correctness of the state transformation of SMT in the circuit, which makes us not need to update the SMT in the circuit, but also ensure the legal modification of SMT data outside the circuit. We can verify the validity of data modification through zkApp.
 
 --------------------------------
 
 This is an example of using snarky-smt in the mina smart contract, modified from the example in the [snarkyjs official repo](https://github.com/o1-labs/snarkyjs): 
 [**merkle_zkapp.ts**](./src/examples/merkle_zkapp.ts)
 
-# Usage
+## Usage
+
+**Create a merkle tree data store**
+
+```typescript
+import { LevelStore, MemoryStore } from "snarky-smt";
+import { Field } from "snarkyjs";
+import { Level } from "level";
+
+// memory data store for Field type data
+let store = new MemoryStore<Field>();
+
+// or create a leveldb data store for Field type data
+const levelDb = new Level<string, any>('./db');
+store = new LevelStore<Field>(levelDb, Field, 'test');
+```
+
+**Use NumIndexSparseMerkleTree: NumIndexSparseMerkleTree is a sparse merkle tree of numerically indexed data that can customize the tree height, this merkel tree is equivalent to a data structure: Map<bigint,CircuitValue>, CircuitValue can be a CircuitValue type in snarkyjs, such as Field, PublicKey, or a custom composite CircuitValue. The tree height must be less than or equal to 254, the numeric index must be less than or equal to (2^height-1).**
+
+An example of using NumIndexSparseMerkleTree in the mina smart contract, modified from the example in the [snarkyjs official repo](https://github.com/o1-labs/snarkyjs): 
+[**numindex_merkle_zkapp.ts**](./src/examples/numindex_merkle_zkapp.ts)
+
+```typescript
+class Account extends CircuitValue {
+  @prop address: PublicKey;
+  @prop balance: UInt64;
+  @prop nonce: UInt32;
+
+  constructor(address: PublicKey, balance: UInt64, nonce: UInt32) {
+    super(address, balance, nonce);
+    this.address = address;
+    this.balance = balance;
+    this.nonce = nonce;
+  }
+}
+
+// Create a memory store
+let store = new MemoryStore<Account>();
+// initialize a new Merkle Tree with height 8
+let smt = await NumIndexSparseMerkleTree.buildNewTree<Account>(store, 8);
+
+let testValue = new Account(
+  PrivateKey.random().toPublicKey(),
+  UInt64.fromNumber(100),
+  UInt32.fromNumber(0)
+);
+
+const root = await smt.update(0n, testValue);
+
+// support compact merkle proof
+const cproof = await smt.proveCompact(0n);
+// decompact NumIndexProof
+const proof = decompactNumIndexProof(cproof);
+// verify the proof outside the circuit
+const ok = proof.verify<Account>(root, testValue);
+
+// verify the proof in the circuit
+proof
+  .verifyByFieldInCircuit(root, Poseidon.hash(testValue.toFields()))
+  .assertTrue();
+
+// verify the proof in the circuit(generic method)
+proof.verifyInCircuit<Account>(root, testValue, Account).assertTrue();
+```
+
+**Use SparseMerkleTree: SparseMerkleTree is a merkle tree with a fixed height of 254, this merkel tree is equivalent to a data structure: Map<CircuitValue,CircuitValue>, CircuitValue can be a CircuitValue type in snarkyjs, such as Field, PublicKey, or a custom composite CircuitValue.**
+
+An example of using SparseMerkleTree in the mina smart contract, modified from the example in the [snarkyjs official repo](https://github.com/o1-labs/snarkyjs): 
+[**merkle_zkapp.ts**](./src/examples/merkle_zkapp.ts)
 
 ```typescript
 import { Level } from 'level';
@@ -104,11 +189,11 @@ console.log('ok: ', ok);
 // Create a merkle proof for a key against the current root.
 const proof = await smt.prove(testKey);
 
-// Note that only methods whose method name ends with InCircuit can run in zkapps (smart contracts of the mina protocol)
-// Verify the Merkle proof in zkapps (existence merkle proof), isOk should be true.
+// Note that only methods whose method name ends with InCircuit can run in zkApps (smart contracts of the mina protocol)
+// Verify the Merkle proof in zkApps (membership merkle proof), isOk should be true.
 let isOk = verifyProofInCircuit(proof, root, testKey, testValue, Account);
 
-// Non-existence merkle proof, isOk should be false.
+// Verify Non-membership merkle proof in circuit, isOk should be false.
 isOk = verifyProofInCircuit(proof, root, testKey, createEmptyValue<Account>(Account), Account);
 
 let newRoot = computeRootInCircuit(
@@ -123,14 +208,14 @@ console.log('newRoot: ', newRoot.toString());
 const keyHash = Poseidon.hash([testKey]);
 const valueHash = Poseidon.hash(testValue.toFields());
 const newValueHash = Poseidon.hash(newValue.toFields());
-// Existence merkle proof, isOk should be true.
+// Verify membership merkle proof in circuit, isOk should be true.
 isOk = verifyProofByFieldInCircuit(proof, root, keyHash, valueHash);
-// Non-existence merkle proof, isOk should be false.
+// Verify non-membership merkle proof, isOk should be false.
 isOk = verifyProofByFieldInCircuit(proof, root, keyHash, SMT_EMPTY_VALUE);
 newRoot = computeRootByFieldInCircuit(proof.sideNodes, keyHash, newValueHash);
 ```
 
-# API Reference
+## API Reference
 
 - [API Document](https://comdex.github.io/snarky-smt/)
 

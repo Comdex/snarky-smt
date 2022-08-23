@@ -5,7 +5,7 @@ import { Hasher } from '../proofs';
 import { Store } from '../store/store';
 import { countCommonPrefix } from '../utils';
 import {
-  compactProof_C,
+  c_compactProof,
   CSparseCompactMerkleProof,
   CSparseMerkleProof,
 } from './proofs';
@@ -248,7 +248,7 @@ export class CSparseMerkleTree<
     key: K
   ): Promise<CSparseCompactMerkleProof> {
     const proof = await this.doProveForRoot(root, key, false);
-    return compactProof_C(proof, this.th.getHasher());
+    return c_compactProof(proof, this.th.getHasher());
   }
 
   private async doProveForRoot(

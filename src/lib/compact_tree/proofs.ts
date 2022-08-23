@@ -75,7 +75,7 @@ export interface CSparseCompactMerkleProof {
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {boolean}
  */
-export function verifyCompactProof_C<
+export function c_verifyCompactProof<
   K extends FieldElements,
   V extends FieldElements
 >(
@@ -85,11 +85,11 @@ export function verifyCompactProof_C<
   value?: V,
   hasher: Hasher = Poseidon.hash
 ): boolean {
-  const proof = decompactProof_C(cproof, hasher);
-  return verifyProof_C<K, V>(proof, root, key, value, hasher);
+  const proof = c_decompactProof(cproof, hasher);
+  return c_verifyProof<K, V>(proof, root, key, value, hasher);
 }
 
-export function verifyProofWithUpdates_C<
+export function c_verifyProofWithUpdates<
   K extends FieldElements,
   V extends FieldElements
 >(
@@ -180,14 +180,14 @@ export function verifyProofWithUpdates_C<
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {boolean}
  */
-export function verifyProof_C<K extends FieldElements, V extends FieldElements>(
+export function c_verifyProof<K extends FieldElements, V extends FieldElements>(
   proof: CSparseMerkleProof,
   root: Field,
   key: K,
   value?: V,
   hasher: Hasher = Poseidon.hash
 ): boolean {
-  const { ok } = verifyProofWithUpdates_C<K, V>(
+  const { ok } = c_verifyProofWithUpdates<K, V>(
     proof,
     root,
     key,
@@ -205,7 +205,7 @@ export function verifyProof_C<K extends FieldElements, V extends FieldElements>(
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {CSparseCompactMerkleProof}
  */
-export function compactProof_C(
+export function c_compactProof(
   proof: CSparseMerkleProof,
   hasher: Hasher = Poseidon.hash
 ): CSparseCompactMerkleProof {
@@ -247,7 +247,7 @@ export function compactProof_C(
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {CSparseMerkleProof}
  */
-export function decompactProof_C(
+export function c_decompactProof(
   proof: CSparseCompactMerkleProof,
   hasher: Hasher = Poseidon.hash
 ): CSparseMerkleProof {

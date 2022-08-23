@@ -5,24 +5,28 @@ import { LevelStore } from '../src/lib/store/level_store';
 describe('LevelStore', () => {
   let store: LevelStore<Field>;
 
-  beforeAll(async () => {
-    await isReady;
-  });
+  // beforeAll(async () => {
+  //   await isReady;
+  // });
 
-  afterAll(() => {
-    shutdown();
+  afterAll(async () => {
+    // `shutdown()` internally calls `process.exit()` which will exit the running Jest process early.
+    // Specifying a timeout of 0 is a workaround to defer `shutdown()` until Jest is done running all tests.
+    // This should be fixed with https://github.com/MinaProtocol/mina/issues/10943
+    setTimeout(shutdown, 0);
   });
 
   beforeEach(async () => {
+    await isReady;
     const levelDb = new Level<string, any>('./db');
     store = new LevelStore(levelDb, Field, 'test');
   });
 
   it('should set, get elements and update root correctly', async () => {
-    let keys = [];
-    let nodes = [];
-    let paths = [];
-    let values = [];
+    let keys: Field[] = [];
+    let nodes: Field[] = [];
+    let paths: Field[] = [];
+    let values: Field[] = [];
     const updateTimes = 5;
 
     for (let i = 0; i < updateTimes; i++) {

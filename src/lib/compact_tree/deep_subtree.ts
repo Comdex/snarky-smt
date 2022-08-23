@@ -2,7 +2,7 @@ import { Field, Poseidon } from 'snarkyjs';
 import { FieldElements } from '../model';
 import { Hasher } from '../proofs';
 import { Store } from '../store/store';
-import { CSparseMerkleProof, verifyProofWithUpdates_C } from './proofs';
+import { CSparseMerkleProof, c_verifyProofWithUpdates } from './proofs';
 import { CSparseMerkleTree } from './smt';
 
 /**
@@ -24,7 +24,7 @@ export class CDeepSparseMerkleSubTree<
 
   async addBranch(proof: CSparseMerkleProof, key: K, value: V) {
     const th = this.getTreeHasher();
-    const { ok, updates } = verifyProofWithUpdates_C(
+    const { ok, updates } = c_verifyProofWithUpdates(
       proof,
       this.getRoot(),
       key,
