@@ -13,7 +13,7 @@ import { CSparseMerkleProof } from './proofs';
 import { TreeHasher } from './tree_hasher';
 
 /**
- * Since a variable-length array cannot be defined in CircuitValue, it cannot be implemented temporarily.
+ * Since a variable-length array cannot be defined in CircuitValue, this is just an experimental method.
  *
  * @export
  * @template K
@@ -26,7 +26,7 @@ import { TreeHasher } from './tree_hasher';
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {Bool}
  */
-export function verifyProofInCircuit_C<
+export function c_verifyProofInCircuit<
   K extends CircuitValue,
   V extends CircuitValue
 >(

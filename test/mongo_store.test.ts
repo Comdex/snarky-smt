@@ -1,15 +1,32 @@
-import { Level } from 'level';
+import mongoose from 'mongoose';
 import { Field, isReady, shutdown } from 'snarkyjs';
-import { LevelStore } from '../src/lib/store/level_store';
+import { MongoStore } from '../src/lib/store/mongo_store';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
 
-describe('LevelStore', () => {
-  let store: LevelStore<Field>;
+jest.setTimeout(10000);
+describe('MongoStore', () => {
+  let store: MongoStore<Field>;
+  let replset: MongoMemoryReplSet;
+  let conn: mongoose.Connection;
 
-  // beforeAll(async () => {
-  //   await isReady;
-  // });
+  beforeAll(async () => {
+    // mongoServer = await MongoMemoryServer.create();
+
+    replset = await MongoMemoryReplSet.create({
+      replSet: { count: 2, storageEngine: 'wiredTiger' },
+    });
+
+    await mongoose.connect(replset.getUri(), { dbName: 'testdb' });
+    conn = mongoose.connection;
+  });
 
   afterAll(async () => {
+    if (conn) {
+      await mongoose.disconnect();
+    }
+    if (replset) {
+      await replset.stop();
+    }
     // `shutdown()` internally calls `process.exit()` which will exit the running Jest process early.
     // Specifying a timeout of 0 is a workaround to defer `shutdown()` until Jest is done running all tests.
     // This should be fixed with https://github.com/MinaProtocol/mina/issues/10943
@@ -18,8 +35,7 @@ describe('LevelStore', () => {
 
   beforeEach(async () => {
     await isReady;
-    const levelDb = new Level<string, any>('./db');
-    store = new LevelStore(levelDb, Field, 'test');
+    store = new MongoStore(conn, Field, 'test');
   });
 
   it('should set, get elements and update root correctly', async () => {
@@ -63,5 +79,11 @@ describe('LevelStore', () => {
 
     const updateRoot = await store.getRoot();
     expect(updateRoot.equals(root).toBoolean());
+
+    expect(await store.getValuesMap()).toBeTruthy();
+
+    await store.clear();
+
+    await expect(store.getValue(paths[1])).rejects.toThrowError();
   });
 });

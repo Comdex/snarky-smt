@@ -7,7 +7,7 @@ import {
   Poseidon,
 } from 'snarkyjs';
 import { SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
-import { Hasher, SparseMerkleProof } from './proofs';
+import { FieldPair, Hasher, SparseMerkleProof } from './proofs';
 import { createEmptyValue } from './utils';
 
 /**
@@ -77,21 +77,8 @@ export function computeRootInCircuit<
     SMT_EMPTY_VALUE
   );
 
-  Field(sideNodes.length).assertEquals(SMT_DEPTH);
-
   const path = hasher(key.toFields());
-  const pathBits = path.toBits();
-  for (let i = SMT_DEPTH - 1; i >= 0; i--) {
-    let node = sideNodes[i];
-
-    currentHash = Circuit.if<Field>(
-      pathBits[i],
-      hasher([node, currentHash]),
-      hasher([currentHash, node])
-    );
-  }
-
-  return currentHash;
+  return computeRootByFieldInCircuit(sideNodes, path, currentHash, hasher);
 }
 
 /**
@@ -147,11 +134,12 @@ export function computeRootByFieldInCircuit(
   for (let i = SMT_DEPTH - 1; i >= 0; i--) {
     let node = sideNodes[i];
 
-    currentHash = Circuit.if(
+    let fieldPair = Circuit.if<FieldPair>(
       pathBits[i],
-      hasher([node, currentHash]),
-      hasher([currentHash, node])
+      new FieldPair(node, currentHash),
+      new FieldPair(currentHash, node)
     );
+    currentHash = hasher(fieldPair.getPair());
   }
   return currentHash;
 }

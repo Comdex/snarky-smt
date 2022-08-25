@@ -5,14 +5,14 @@ import { Hasher } from '../proofs';
 import { Store } from '../store/store';
 import { countCommonPrefix } from '../utils';
 import {
-  compactProof_C,
+  c_compactProof,
   CSparseCompactMerkleProof,
   CSparseMerkleProof,
 } from './proofs';
 import { TreeHasher } from './tree_hasher';
 
 /**
- * CompactSparseMerkleTree
+ * Experimental: CompactSparseMerkleTree
  *
  * @export
  * @class CSparseMerkleTree
@@ -248,7 +248,7 @@ export class CSparseMerkleTree<
     key: K
   ): Promise<CSparseCompactMerkleProof> {
     const proof = await this.doProveForRoot(root, key, false);
-    return compactProof_C(proof, this.th.getHasher());
+    return c_compactProof(proof, this.th.getHasher());
   }
 
   private async doProveForRoot(
@@ -439,7 +439,7 @@ export class CSparseMerkleTree<
       this.store.prepareDelValue(path);
     }
 
-    console.log('commonPrefixCount: ', commonPrefixCount);
+    // console.log('commonPrefixCount: ', commonPrefixCount);
 
     // delete orphaned path nodes
     for (let i = 1; i < pathNodes.length; i++) {

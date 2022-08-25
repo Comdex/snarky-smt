@@ -1,9 +1,11 @@
-import { Level } from 'level';
 import { Field, isReady, shutdown } from 'snarkyjs';
-import { LevelStore } from '../src/lib/store/level_store';
+import { RocksStore } from '../src/lib/store/rocks_store';
+import encode from 'encoding-down';
+import rocksdb from 'rocksdb';
+import levelup from 'levelup';
 
-describe('LevelStore', () => {
-  let store: LevelStore<Field>;
+describe('RocksStore', () => {
+  let store: RocksStore<Field>;
 
   // beforeAll(async () => {
   //   await isReady;
@@ -18,8 +20,10 @@ describe('LevelStore', () => {
 
   beforeEach(async () => {
     await isReady;
-    const levelDb = new Level<string, any>('./db');
-    store = new LevelStore(levelDb, Field, 'test');
+    const encoded = encode(rocksdb('./rocksdb'));
+    const db = levelup(encoded);
+    db.setMaxListeners(17);
+    store = new RocksStore<Field>(db, Field, 'test');
   });
 
   it('should set, get elements and update root correctly', async () => {
@@ -63,5 +67,7 @@ describe('LevelStore', () => {
 
     const updateRoot = await store.getRoot();
     expect(updateRoot.equals(root).toBoolean());
+
+    expect(await store.getValuesMap()).toBeTruthy();
   });
 });

@@ -1,6 +1,6 @@
 {
   "name": "snarky-smt",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Sparse Merkle Tree for SnarkyJS",
   "main": "build/module/index.js",
   "typings": "build/module/index.d.ts",
@@ -25,6 +25,7 @@
   "type": "module",
   "scripts": {
     "clear": "rm -rf ./build",
+    "example:numindex": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/examples/numindex_merkle_zkapp.js",
     "example": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/examples/merkle_zkapp.js",
     "build:main": "tsc -p tsconfig.json",
     "build:module": "tsc -p tsconfig.module.json",
@@ -32,19 +33,27 @@
     "doc:html": "typedoc src/index.ts --exclude **/*.test.ts --out build/docs",
     "doc:json": "typedoc src/index.ts --exclude **/*.test.ts --json build/docs/typedoc.json",
     "doc:publish": "gh-pages -m \"[ci skip] Updates\" -d build/docs",
-    "test": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js"
+    "test": "jest --config jest.config.js --maxWorkers=50%"
   },
   "engines": {
     "node": ">=16.4.0"
   },
   "peerDependencies": {
+    "encoding-down": "^7.1.0",
     "level": "^8.0.0",
+    "levelup": "^5.1.1",
+    "rocksdb": "^5.2.1",
+    "mongoose": "^6.5.2",
     "snarkyjs": "^0.5.1"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.16.4",
     "@babel/preset-typescript": "^7.16.0",
-    "@types/jest": "^27.0.3",
+    "@types/encoding-down": "^5.0.0",
+    "@types/jest": "^28.1.8",
+    "@types/levelup": "^5.1.2",
+    "@types/mongoose": "^5.11.97",
+    "@types/rocksdb": "^3.0.1",
     "@typescript-eslint/eslint-plugin": "^5.5.0",
     "@typescript-eslint/parser": "^5.5.0",
     "eslint": "^8.7.0",
@@ -52,9 +61,10 @@
     "eslint-plugin-eslint-comments": "^3.2.0",
     "eslint-plugin-import": "^2.22.0",
     "gh-pages": "^4.0.0",
-    "jest": "^27.3.1",
+    "jest": "^28.1.3c",
+    "mongodb-memory-server": "^8.9.0",
     "prettier": "^2.3.2",
-    "ts-jest": "^27.0.7",
+    "ts-jest": "^28.0.8",
     "typedoc": "^0.22.15",
     "typescript": "^4.6.4"
   },

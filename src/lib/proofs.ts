@@ -1,6 +1,8 @@
 import {
   arrayProp,
+  AsFieldElements,
   Bool,
+  Circuit,
   CircuitValue,
   Field,
   isReady,
@@ -10,11 +12,326 @@ import {
 import { RIGHT, SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
 import { defaultNodes } from './default_nodes';
 import { FieldElements } from './model';
-import { countSetBits } from './utils';
+import { countSetBits, createEmptyValue } from './utils';
+
+await isReady;
 
 export type Hasher = (v: Field[]) => Field;
 
-await isReady;
+export class FieldPair extends CircuitValue {
+  @prop left: Field;
+  @prop right: Field;
+
+  constructor(left: Field, right: Field) {
+    super(left, right);
+    this.left = left;
+    this.right = right;
+  }
+
+  getPair(): Field[] {
+    return [this.left, this.right];
+  }
+}
+
+/**
+ *  Merkle proof CircuitValue for an element in a NumIndexSparseMerkleTree.
+ *
+ * @export
+ * @class BaseNumIndexSparseMerkleProof
+ * @extends {CircuitValue}
+ */
+export class BaseNumIndexSparseMerkleProof extends CircuitValue {
+  static height: number;
+  root: Field;
+  path: Field;
+  sideNodes: Field[];
+
+  constructor(root: Field, path: Field, sideNodes: Field[]) {
+    super();
+    this.root = root;
+    this.path = path;
+    this.sideNodes = sideNodes;
+  }
+
+  height(): number {
+    return (this.constructor as any).height;
+  }
+
+  /**
+   * Calculate new root based on value. Note: This method cannot be executed in a circuit.
+   *
+   * @template V
+   * @param {V} [value]
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {Field}
+   * @memberof BaseNumIndexSparseMerkleProof
+   */
+  computeRoot<V extends FieldElements>(
+    value?: V,
+    hasher: Hasher = Poseidon.hash
+  ): Field {
+    let currentHash: Field;
+    if (value !== undefined) {
+      currentHash = hasher(value.toFields());
+    } else {
+      currentHash = SMT_EMPTY_VALUE;
+    }
+
+    let h = this.height();
+
+    if (this.sideNodes.length !== h) {
+      throw new Error('Invalid sideNodes size');
+    }
+
+    const pathBits = this.path.toBits();
+    for (let i = h - 1; i >= 0; i--) {
+      let node = this.sideNodes[i];
+      if (pathBits[i].toBoolean() === RIGHT) {
+        currentHash = hasher([node, currentHash]);
+      } else {
+        currentHash = hasher([currentHash, node]);
+      }
+    }
+
+    return currentHash;
+  }
+
+  /**
+   * Verify this merkle proof. Note: This method cannot be executed in a circuit.
+   *
+   * @template V
+   * @param {Field} root
+   * @param {V} [value]
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {boolean}
+   * @memberof BaseNumIndexSparseMerkleProof
+   */
+  verify<V extends FieldElements>(
+    root: Field,
+    value?: V,
+    hasher: Hasher = Poseidon.hash
+  ): boolean {
+    if (this.root.equals(root).not().toBoolean()) {
+      return false;
+    }
+    let newRoot = this.computeRoot<V>(value, hasher);
+
+    return newRoot.equals(root).toBoolean();
+  }
+
+  /**
+   * Calculate new root based on value and valueType in circuit.
+   *
+   * @template V
+   * @param {V} value
+   * @param {AsFieldElements<V>} valueType
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {Field}
+   * @memberof BaseNumIndexSparseMerkleProof
+   */
+  computeRootInCircuit<V extends CircuitValue>(
+    value: V,
+    valueType: AsFieldElements<V>,
+    hasher: Hasher = Poseidon.hash
+  ): Field {
+    const emptyValue = createEmptyValue<V>(valueType);
+    let currentHash: Field = Circuit.if(
+      value.equals(emptyValue).not(),
+      hasher(value.toFields()),
+      SMT_EMPTY_VALUE
+    );
+
+    return this.computeRootByFieldInCircuit(currentHash, hasher);
+  }
+
+  /**
+   * Verify this merkle proof in circuit.
+   *
+   * @template V
+   * @param {Field} root
+   * @param {V} value
+   * @param {AsFieldElements<V>} valueType
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {Bool}
+   * @memberof BaseNumIndexSparseMerkleProof
+   */
+  verifyInCircuit<V extends CircuitValue>(
+    root: Field,
+    value: V,
+    valueType: AsFieldElements<V>,
+    hasher: Hasher = Poseidon.hash
+  ): Bool {
+    const rootEqual = this.root.equals(root);
+    const currentHash = this.computeRootInCircuit(value, valueType, hasher);
+
+    return rootEqual.and(currentHash.equals(root));
+  }
+
+  /**
+   * Calculate new root based on valueHash in circuit.
+   *
+   * @param {Field} valueHash
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {Field}
+   * @memberof BaseNumIndexSparseMerkleProof
+   */
+  computeRootByFieldInCircuit(
+    valueHash: Field,
+    hasher: Hasher = Poseidon.hash
+  ): Field {
+    let h = this.height();
+    let currentHash: Field = valueHash;
+    Field(this.sideNodes.length).assertEquals(h);
+
+    const pathBits = this.path.toBits(h);
+    for (let i = h - 1; i >= 0; i--) {
+      let node = this.sideNodes[i];
+
+      let fieldPair = Circuit.if<FieldPair>(
+        pathBits[i],
+        new FieldPair(node, currentHash),
+        new FieldPair(currentHash, node)
+      );
+
+      currentHash = hasher(fieldPair.getPair());
+    }
+    return currentHash;
+  }
+
+  /**
+   * Verify this merkle proof by root and valueHash in circuit.
+   *
+   * @param {Field} root
+   * @param {Field} valueHash
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {Bool}
+   * @memberof BaseNumIndexSparseMerkleProof
+   */
+  verifyByFieldInCircuit(
+    root: Field,
+    valueHash: Field,
+    hasher: Hasher = Poseidon.hash
+  ): Bool {
+    const rootEqual = this.root.equals(root);
+    const newRoot = this.computeRootByFieldInCircuit(valueHash, hasher);
+
+    return rootEqual.and(newRoot.equals(root));
+  }
+}
+
+/**
+ * Create a meerkle proof circuit value type based on the specified tree height.
+ *
+ * @export
+ * @param {number} height
+ * @return {*}  {typeof BaseNumIndexSparseMerkleProof}
+ */
+export function NumIndexSparseMerkleProof(
+  height: number
+): typeof BaseNumIndexSparseMerkleProof {
+  class NumIndexSparseMerkleProof_ extends BaseNumIndexSparseMerkleProof {
+    static height = height;
+  }
+  if (!NumIndexSparseMerkleProof_.prototype.hasOwnProperty('_fields')) {
+    (NumIndexSparseMerkleProof_.prototype as any)._fields = [];
+  }
+
+  (NumIndexSparseMerkleProof_.prototype as any)._fields.push(['root', Field]);
+  (NumIndexSparseMerkleProof_.prototype as any)._fields.push(['path', Field]);
+  arrayProp(Field, height)(NumIndexSparseMerkleProof_.prototype, 'sideNodes');
+
+  return NumIndexSparseMerkleProof_;
+}
+
+/**
+ * Compacted Merkle proof for an element in a NumIndexSparseMerkleTree
+ *
+ * @export
+ * @interface NumIndexSparseCompactMerkleProof
+ */
+export interface NumIndexSparseCompactMerkleProof {
+  height: number;
+  root: Field;
+  path: Field;
+  sideNodes: Field[];
+  bitMask: Field;
+}
+
+/**
+ * Compact a num index sparse merkle proof to reduce its size
+ *
+ * @export
+ * @param {BaseNumIndexSparseMerkleProof} proof
+ * @param {Hasher} [hasher=Poseidon.hash]
+ * @return {*}  {NumIndexSparseCompactMerkleProof}
+ */
+export function compactNumIndexProof(
+  proof: BaseNumIndexSparseMerkleProof,
+  hasher: Hasher = Poseidon.hash
+): NumIndexSparseCompactMerkleProof {
+  const h = proof.height();
+  if (proof.sideNodes.length !== h) {
+    throw new Error('Bad proof size');
+  }
+
+  let bits = new Array<Bool>(h).fill(new Bool(false));
+  let compactSideNodes: Field[] = [];
+  for (let i = 0; i < h; i++) {
+    let node = proof.sideNodes[i];
+    if (node.equals(defaultNodes(hasher, h)[i + 1]).toBoolean()) {
+      bits[i] = new Bool(true);
+    } else {
+      compactSideNodes.push(node);
+    }
+  }
+
+  return {
+    height: h,
+    root: proof.root,
+    path: proof.path,
+    sideNodes: compactSideNodes,
+    bitMask: Field.ofBits(bits),
+  };
+}
+
+/**
+ * Decompact a NumIndexSparseCompactMerkleProof.
+ *
+ * @export
+ * @param {NumIndexSparseCompactMerkleProof} proof
+ * @param {Hasher} [hasher=Poseidon.hash]
+ * @return {*}  {BaseNumIndexSparseMerkleProof}
+ */
+export function decompactNumIndexProof(
+  proof: NumIndexSparseCompactMerkleProof,
+  hasher: Hasher = Poseidon.hash
+): BaseNumIndexSparseMerkleProof {
+  const h = proof.height;
+  const bits = proof.bitMask.toBits();
+  const proofSize = h - countSetBits(bits);
+  if (proof.sideNodes.length !== proofSize) {
+    throw new Error('Invalid proof size');
+  }
+
+  let decompactedSideNodes = new Array<Field>(h);
+  let position = 0;
+  for (let i = 0; i < h; i++) {
+    if (bits[i].toBoolean()) {
+      decompactedSideNodes[i] = defaultNodes(hasher, h)[i + 1];
+    } else {
+      decompactedSideNodes[i] = proof.sideNodes[position];
+      position++;
+    }
+  }
+
+  class InnerNumIndexSparseMerkleProof extends NumIndexSparseMerkleProof(h) {}
+
+  return new InnerNumIndexSparseMerkleProof(
+    proof.root,
+    proof.path,
+    decompactedSideNodes
+  );
+}
 
 /**
  * Merkle proof CircuitValue for an element in a SparseMerkleTree.

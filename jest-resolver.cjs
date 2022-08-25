@@ -12,6 +12,20 @@ module.exports = (request, options) => {
       if (pkg.name === 'node-fetch') {
         return { ...pkg, main: pkg.main };
       }
+
+      if(pkg.name === 'mongodb') {
+        return {...pkg, main: pkg.main};
+      }
+      if(pkg.name === 'bson') {
+        return {...pkg, main: pkg.main};
+      }
+      if(pkg.name === 'mongoose') {
+        return {...pkg, main: pkg.main};
+      }
+      if(pkg.name === 'sift') {
+        return {...pkg, main: pkg.main};
+      }
+
       return {
         ...pkg,
         main: pkg.module || pkg.main,
