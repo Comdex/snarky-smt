@@ -12,7 +12,7 @@ import {
 import { TreeHasher } from './tree_hasher';
 
 /**
- * CompactSparseMerkleTree
+ * Experimental: CompactSparseMerkleTree
  *
  * @export
  * @class CSparseMerkleTree
@@ -439,7 +439,7 @@ export class CSparseMerkleTree<
       this.store.prepareDelValue(path);
     }
 
-    console.log('commonPrefixCount: ', commonPrefixCount);
+    // console.log('commonPrefixCount: ', commonPrefixCount);
 
     // delete orphaned path nodes
     for (let i = 1; i < pathNodes.length; i++) {

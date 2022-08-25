@@ -187,10 +187,11 @@ export class NumIndexSparseMerkleTree<V extends FieldElements> {
       return value;
     } catch (err: any) {
       console.log(err);
-      if (err.code === 'LEVEL_NOT_FOUND') {
-        return null;
-      }
-      throw err;
+      // if (err.code === 'LEVEL_NOT_FOUND') {
+      //   return null;
+      // }
+      // throw err;
+      return null;
     }
   }
 
