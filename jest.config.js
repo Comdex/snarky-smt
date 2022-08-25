@@ -15,5 +15,9 @@ export default {
   resolver: '<rootDir>/jest-resolver.cjs',
   transformIgnorePatterns: [
     '<rootDir>/node_modules/(?!snarkyjs/node_modules/tslib)',
+    '<rootDir>/node_modules/mongodb',
+    // '<rootDir>/node_modules/bson',
+    '<rootDir>/node_modules/mongoose',
+   // '<rootDir>/node_modules/sift',
   ],
 };
