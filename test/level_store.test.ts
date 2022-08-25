@@ -51,19 +51,9 @@ describe('LevelStore', () => {
 
     await store.commit();
 
-    try {
-      const nodes0 = await store.getNodes(keys[0]);
-      expect(false);
-    } catch (err) {
-      expect(true);
-    }
+    await expect(store.getNodes(keys[0])).rejects.toThrowError();
 
-    try {
-      const value0 = await store.getValue(paths[0]);
-      expect(false);
-    } catch (err) {
-      expect(true);
-    }
+    await expect(store.getValue(paths[0])).rejects.toThrowError();
 
     const nodes1 = await store.getNodes(keys[1]);
     expect(nodes1[0].equals(nodes[1]).toBoolean());
