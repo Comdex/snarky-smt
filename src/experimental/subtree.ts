@@ -23,7 +23,7 @@ await isReady;
 const doProofs = true;
 
 class TestZkapp extends SmartContract {
-  @state(Field) registerFee = State<Field>();
+  @state(Field) commitment = State<Field>();
 
   deploy(args: DeployArgs) {
     super.deploy(args);
@@ -31,10 +31,9 @@ class TestZkapp extends SmartContract {
     this.setPermissions({
       ...Permissions.default(),
       editState: Permissions.proofOrSignature(),
-      editSequenceState: Permissions.proofOrSignature(),
-      send: Permissions.proofOrSignature(),
-      receive: Permissions.proofOrSignature(),
     });
+
+    this.commitment.set(root);
   }
 
   @method
@@ -49,18 +48,23 @@ class TestZkapp extends SmartContract {
     key3: Field,
     value3: Field
   ) {
+    let commitment = this.commitment.get();
+    this.commitment.assertEquals(commitment);
+
     let tree = new DeepSparseMerkleSubTree<Field, Field>(proof1.root, Field);
     tree.addBranch(proof1, key1, value1);
-    // tree.addBranch(proof2, key2, value2);
-    // tree.addBranch(proof3, key3, value3);
+    tree.addBranch(proof2, key2, value2);
+    tree.addBranch(proof3, key3, value3);
 
     let finalRoot = tree.update(key1, Field(88));
-    // finalRoot = tree.update(key2, Field(99));
-    // finalRoot = tree.update(key3, Field(1010));
+    finalRoot = tree.update(key2, Field(99));
+    finalRoot = tree.update(key3, Field(1010));
 
     Circuit.asProver(() => {
       console.log('finalRoot: ', finalRoot.toString());
     });
+
+    finalRoot.assertEquals(commitment);
   }
 }
 
@@ -70,32 +74,32 @@ let feePayerKey = local.testAccounts[0].privateKey;
 let zkappKey = PrivateKey.random();
 let zkappAddress = zkappKey.toPublicKey();
 
+let tree = await SparseMerkleTree.buildNewTree<Field, Field>(
+  new MemoryStore<Field>()
+);
+const key1 = Field(1);
+const value1 = Field(33);
+const key2 = Field(2);
+const value2 = Field(55);
+const key3 = Field(5);
+const value3 = Field(9999999);
+
+let root = await tree.update(key1, value1);
+root = await tree.update(key2, value2);
+root = await tree.update(key3, value3);
+
+console.log('start root: ', root.toString());
+
+let proof1 = await tree.prove(key1);
+let proof2 = await tree.prove(key2);
+let proof3 = await tree.prove(key3);
+
+root = await tree.update(key1, Field(88));
+root = await tree.update(key2, Field(99));
+root = await tree.update(key3, Field(1010));
+console.log('after root: ', root.toString());
+
 async function test() {
-  let tree = await SparseMerkleTree.buildNewTree<Field, Field>(
-    new MemoryStore<Field>()
-  );
-  const key1 = Field(1);
-  const value1 = Field(33);
-  const key2 = Field(2);
-  const value2 = Field(55);
-  const key3 = Field(5);
-  const value3 = Field(9999999);
-
-  let root = await tree.update(key1, value1);
-  root = await tree.update(key2, value2);
-  root = await tree.update(key3, value3);
-
-  console.log('start root: ', root.toString());
-
-  let proof1 = await tree.prove(key1);
-  let proof2 = await tree.prove(key2);
-  let proof3 = await tree.prove(key3);
-
-  root = await tree.update(key1, Field(88));
-  root = await tree.update(key2, Field(99));
-  root = await tree.update(key3, Field(1010));
-  console.log('after root: ', root.toString());
-
   let zkapp = new TestZkapp(zkappAddress);
 
   if (doProofs) {
