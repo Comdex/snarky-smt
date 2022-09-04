@@ -13,6 +13,7 @@ export default {
     '^.+\\.(j)s$': 'babel-jest',
   },
   resolver: '<rootDir>/jest-resolver.cjs',
+  testPathIgnorePatterns: ['node_modules', 'mongo_store'],
   transformIgnorePatterns: [
     '<rootDir>/node_modules/(?!snarkyjs/node_modules/tslib)',
     '<rootDir>/node_modules/mongodb',

@@ -201,15 +201,21 @@ export function countSetBits(data: Bool[]): number {
  * @export
  * @param {Bool[]} data
  */
-export function printBits(data: Bool[]) {
+export function printBits(data: Bool[], varName?: string) {
   let str = '';
+  let i = 0;
   data.forEach((v) => {
     if (v.toBoolean()) {
       str = str + '1';
     } else {
       str = str + '0';
     }
+    i++;
   });
 
-  console.log('bit data: ', str);
+  if (varName) {
+    console.log(`[${varName}]: ${str}, bit size: ${i}`);
+  } else {
+    console.log(`bit data: ${str}, bit size: ${i}`);
+  }
 }

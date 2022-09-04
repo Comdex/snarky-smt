@@ -18,21 +18,6 @@ await isReady;
 
 export type Hasher = (v: Field[]) => Field;
 
-export class FieldPair extends CircuitValue {
-  @prop left: Field;
-  @prop right: Field;
-
-  constructor(left: Field, right: Field) {
-    super(left, right);
-    this.left = left;
-    this.right = right;
-  }
-
-  getPair(): Field[] {
-    return [this.left, this.right];
-  }
-}
-
 /**
  *  Merkle proof CircuitValue for an element in a NumIndexSparseMerkleTree.
  *
@@ -83,7 +68,7 @@ export class BaseNumIndexSparseMerkleProof extends CircuitValue {
       throw new Error('Invalid sideNodes size');
     }
 
-    const pathBits = this.path.toBits();
+    const pathBits = this.path.toBits(h);
     for (let i = h - 1; i >= 0; i--) {
       let node = this.sideNodes[i];
       if (pathBits[i].toBoolean() === RIGHT) {
@@ -187,13 +172,13 @@ export class BaseNumIndexSparseMerkleProof extends CircuitValue {
     for (let i = h - 1; i >= 0; i--) {
       let node = this.sideNodes[i];
 
-      let fieldPair = Circuit.if<FieldPair>(
+      let currentValue = Circuit.if(
         pathBits[i],
-        new FieldPair(node, currentHash),
-        new FieldPair(currentHash, node)
+        [node, currentHash],
+        [currentHash, node]
       );
 
-      currentHash = hasher(fieldPair.getPair());
+      currentHash = hasher(currentValue);
     }
     return currentHash;
   }
