@@ -138,11 +138,19 @@ export function c_verifyProofWithUpdates<
     updates.push(update);
   }
 
-  const pathBits = path.toBits();
+  let sideNodesLength = 0;
+  for (let i = 0; i < proof.sideNodes.length; i++) {
+    if (proof.sideNodes[i].equals(CP_PADD_VALUE).toBoolean()) {
+      break;
+    }
+    sideNodesLength++;
+  }
+
+  const pathBits = path.toBits(SMT_DEPTH);
   //Recompute root
-  let sideNodesLength = proof.sideNodes.length;
   for (let i = 0; i < sideNodesLength; i++) {
     let node = proof.sideNodes[i];
+
     if (node.equals(CP_PADD_VALUE).toBoolean()) {
       break;
     }

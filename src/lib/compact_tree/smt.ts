@@ -3,7 +3,7 @@ import { ERR_KEY_ALREADY_EMPTY, RIGHT, SMT_DEPTH } from '../constant';
 import { FieldElements } from '../model';
 import { Hasher } from '../proofs';
 import { Store } from '../store/store';
-import { countCommonPrefix } from '../utils';
+import { countCommonPrefix, printBits } from '../utils';
 import {
   c_compactProof,
   CSparseCompactMerkleProof,
@@ -326,6 +326,105 @@ export class CSparseMerkleTree<
     return newRoot!;
   }
 
+  private updateWithSideNodes(
+    path: Field,
+    value: V,
+    sideNodes: Field[],
+    pathNodes: Field[],
+    oldLeafData: Field[]
+  ): Field {
+    const valueHash = this.th.digest(value);
+    let { hash: currentHash, value: currentData } = this.th.digestLeaf(
+      path,
+      valueHash
+    );
+    this.store.preparePutNodes(currentHash, currentData);
+
+    const pathBits = path.toBits(this.depth());
+
+    // Get the number of bits that the paths of the two leaf nodes share
+    // in common as a prefix.
+    let commonPrefixCount: number = 0;
+    let oldValueHash: Field | null = null;
+    if (pathNodes[0].equals(this.th.placeholder()).toBoolean()) {
+      commonPrefixCount = this.depth();
+    } else {
+      let actualPath: Field;
+      let result = this.th.parseLeaf(oldLeafData);
+      actualPath = result.path;
+      oldValueHash = result.leaf;
+
+      commonPrefixCount = countCommonPrefix(
+        pathBits,
+        actualPath.toBits(this.depth())
+      );
+    }
+
+    if (commonPrefixCount !== this.depth()) {
+      if (pathBits[commonPrefixCount].toBoolean() === RIGHT) {
+        const result = this.th.digestNode(pathNodes[0], currentHash);
+        currentHash = result.hash;
+        currentData = result.value;
+      } else {
+        const result = this.th.digestNode(currentHash, pathNodes[0]);
+        currentHash = result.hash;
+        currentData = result.value;
+      }
+
+      this.store.preparePutNodes(currentHash, currentData);
+    } else if (oldValueHash !== null) {
+      if (oldValueHash.equals(valueHash).toBoolean()) {
+        return this.root;
+      }
+
+      // remove old leaf
+      this.store.prepareDelNodes(pathNodes[0]);
+      this.store.prepareDelValue(path);
+    }
+
+    // console.log('commonPrefixCount: ', commonPrefixCount);
+
+    // delete orphaned path nodes
+    for (let i = 1; i < pathNodes.length; i++) {
+      this.store.prepareDelNodes(pathNodes[i]);
+    }
+
+    // i-offsetOfSideNodes is the index into sideNodes[]
+    let offsetOfSideNodes = this.depth() - sideNodes.length;
+    for (let i = 0; i < this.depth(); i++) {
+      let sideNode: Field;
+      const offset = i - offsetOfSideNodes;
+
+      if (offset < 0 || offset >= sideNodes.length) {
+        if (
+          commonPrefixCount != this.depth() &&
+          commonPrefixCount > this.depth() - 1 - i
+        ) {
+          sideNode = this.th.placeholder();
+        } else {
+          continue;
+        }
+      } else {
+        sideNode = sideNodes[offset];
+      }
+
+      if (pathBits[this.depth() - 1 - i].toBoolean() === RIGHT) {
+        const result = this.th.digestNode(sideNode, currentHash);
+        currentHash = result.hash;
+        currentData = result.value;
+      } else {
+        const result = this.th.digestNode(currentHash, sideNode);
+        currentHash = result.hash;
+        currentData = result.value;
+      }
+
+      this.store.preparePutNodes(currentHash, currentData);
+    }
+
+    this.store.preparePutValue(path, value);
+    return currentHash;
+  }
+
   private async deleteWithSideNodes(
     path: Field,
     sideNodes: Field[],
@@ -340,7 +439,7 @@ export class CSparseMerkleTree<
     if (path.equals(actualPath).not().toBoolean()) {
       throw new Error(ERR_KEY_ALREADY_EMPTY);
     }
-    const pathBits = path.toBits();
+    const pathBits = path.toBits(this.depth());
     // All nodes above the deleted leaf are now orphaned
     pathNodes.forEach((node) => {
       this.store.prepareDelNodes(node);
@@ -388,99 +487,6 @@ export class CSparseMerkleTree<
     return currentHash;
   }
 
-  private updateWithSideNodes(
-    path: Field,
-    value: V,
-    sideNodes: Field[],
-    pathNodes: Field[],
-    oldLeafData: Field[]
-  ): Field {
-    const valueHash = this.th.digest(value);
-    let { hash: currentHash, value: currentData } = this.th.digestLeaf(
-      path,
-      valueHash
-    );
-    this.store.preparePutNodes(currentHash, currentData);
-
-    const pathBits = path.toBits();
-    // Get the number of bits that the paths of the two leaf nodes share
-    // in common as a prefix.
-    let commonPrefixCount: number = 0;
-    let oldValueHash: Field | null = null;
-    if (pathNodes[0].equals(this.th.placeholder()).toBoolean()) {
-      commonPrefixCount = this.depth();
-    } else {
-      let actualPath: Field;
-      let result = this.th.parseLeaf(oldLeafData);
-      actualPath = result.path;
-      oldValueHash = result.leaf;
-      commonPrefixCount = countCommonPrefix(pathBits, actualPath.toBits());
-    }
-
-    if (commonPrefixCount !== this.depth()) {
-      if (pathBits[commonPrefixCount].toBoolean() === RIGHT) {
-        const result = this.th.digestNode(pathNodes[0], currentHash);
-        currentHash = result.hash;
-        currentData = result.value;
-      } else {
-        const result = this.th.digestNode(currentHash, pathNodes[0]);
-        currentHash = result.hash;
-        currentData = result.value;
-      }
-
-      this.store.preparePutNodes(currentHash, currentData);
-    } else if (oldValueHash !== null) {
-      if (oldValueHash.equals(valueHash).toBoolean()) {
-        return this.root;
-      }
-
-      // remove old leaf
-      this.store.prepareDelNodes(pathNodes[0]);
-      this.store.prepareDelValue(path);
-    }
-
-    // console.log('commonPrefixCount: ', commonPrefixCount);
-
-    // delete orphaned path nodes
-    for (let i = 1; i < pathNodes.length; i++) {
-      this.store.prepareDelNodes(pathNodes[i]);
-    }
-
-    // i-offsetOfSideNodes is the index into sideNodes[]
-    let offsetOfSideNodes = this.depth() - sideNodes.length;
-    for (let i = 0; i < this.depth(); i++) {
-      let sideNode: Field;
-      const offset = i - offsetOfSideNodes;
-      if (offset < 0 || offset >= sideNodes.length) {
-        if (
-          commonPrefixCount != this.depth() &&
-          commonPrefixCount > this.depth() - 1 - i
-        ) {
-          sideNode = this.th.placeholder();
-        } else {
-          continue;
-        }
-      } else {
-        sideNode = sideNodes[offset];
-      }
-
-      if (pathBits[this.depth() - 1 - i].toBoolean() === RIGHT) {
-        const result = this.th.digestNode(sideNode, currentHash);
-        currentHash = result.hash;
-        currentData = result.value;
-      } else {
-        const result = this.th.digestNode(currentHash, sideNode);
-        currentHash = result.hash;
-        currentData = result.value;
-      }
-
-      this.store.preparePutNodes(currentHash, currentData);
-    }
-
-    this.store.preparePutValue(path, value);
-    return currentHash;
-  }
-
   private async sideNodesForRoot(
     path: Field,
     root: Field,
@@ -518,7 +524,7 @@ export class CSparseMerkleTree<
     let nodeHash: Field;
     let sideNode: Field | null = null;
     let siblingData: Field[] | null = null;
-    let pathBits = path.toBits();
+    let pathBits = path.toBits(this.depth());
     for (let i = 0; i < this.depth(); i++) {
       const { leftNode, rightNode } = this.th.parseNode(currentData!);
       if (pathBits[i].toBoolean() === RIGHT) {
