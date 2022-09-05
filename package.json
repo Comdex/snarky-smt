@@ -77,8 +77,6 @@
     "build/module",
     "!**/*.test.*",
     "!**/*.json",
-    "!build/module/examples/*",
-    "!build/module/experimental/*",
     "LICENSE",
     "README.md"
   ],

@@ -11,6 +11,8 @@ import { SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
 import { Hasher, SparseMerkleProof } from './proofs';
 import { createEmptyValue } from './utils';
 
+export { DeepSparseMerkleSubTree };
+
 class FieldPair extends CircuitValue {
   @prop left: Field;
   @prop right: Field;
@@ -26,7 +28,7 @@ class FieldPair extends CircuitValue {
   }
 }
 
-export class DeepSparseMerkleSubTree<
+class DeepSparseMerkleSubTree<
   K extends CircuitValue | Field,
   V extends CircuitValue | Field
 > {

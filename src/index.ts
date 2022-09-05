@@ -1,6 +1,7 @@
 export { SparseMerkleTree } from './lib/smt';
 export { MultiVersionSparseMerkleTree } from './lib/multiversion_smt';
 export { NumIndexSparseMerkleTree } from './lib/numindex_smt';
+export { DeepSparseMerkleSubTree } from './lib/deep_subtree';
 export type {
   FieldElements,
   SparseCompactMerkleProofJSON,
@@ -15,9 +16,10 @@ export {
   verifyCompactProof,
   compactProof,
   decompactProof,
-  NumIndexSparseMerkleProof, BaseNumIndexSparseMerkleProof,
+  NumIndexSparseMerkleProof,
+  BaseNumIndexSparseMerkleProof,
   compactNumIndexProof,
-  decompactNumIndexProof
+  decompactNumIndexProof,
 } from './lib/proofs';
 export type { NumIndexSparseCompactMerkleProof } from './lib/proofs';
 export {
