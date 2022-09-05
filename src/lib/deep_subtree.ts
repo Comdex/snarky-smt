@@ -32,11 +32,11 @@ class DeepSparseMerkleSubTree<
   K extends CircuitValue | Field,
   V extends CircuitValue | Field
 > {
-  nodeStore: Map<string, Field[]>;
-  valueStore: Map<string, Field>;
-  root: Field;
-  valueType: AsFieldElements<V>;
-  hasher: Hasher;
+  private nodeStore: Map<string, Field[]>;
+  private valueStore: Map<string, Field>;
+  private root: Field;
+  private valueType: AsFieldElements<V>;
+  private hasher: Hasher;
 
   constructor(
     root: Field,
@@ -50,7 +50,11 @@ class DeepSparseMerkleSubTree<
     this.hasher = hasher;
   }
 
-  addBranch(proof: SparseMerkleProof, key: K, value: V) {
+  public getRoot(): Field {
+    return this.root;
+  }
+
+  public addBranch(proof: SparseMerkleProof, key: K, value: V) {
     const keyHash = this.hasher(key.toFields());
     const valueHash = this.hasher(value.toFields());
 
@@ -73,7 +77,7 @@ class DeepSparseMerkleSubTree<
     });
   }
 
-  update(key: K, value: V): Field {
+  public update(key: K, value: V): Field {
     const path = this.hasher(key.toFields());
     const pathBits = path.toBits(SMT_DEPTH);
     let sideNodes: Field[] = [];
