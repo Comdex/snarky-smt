@@ -1,6 +1,6 @@
 {
   "name": "snarky-smt",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Sparse Merkle Tree for SnarkyJS",
   "main": "build/module/index.js",
   "typings": "build/module/index.d.ts",
@@ -24,6 +24,9 @@
   ],
   "type": "module",
   "scripts": {
+    "demo": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/experimental/demo.js",
+    "ctree": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/experimental/ctree.js",
+    "subtree": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/experimental/subtree.js",
     "clear": "rm -rf ./build",
     "example:numindex": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/examples/numindex_merkle_zkapp.js",
     "example": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/examples/merkle_zkapp.js",
@@ -33,7 +36,9 @@
     "doc:html": "typedoc src/index.ts --exclude **/*.test.ts --out build/docs",
     "doc:json": "typedoc src/index.ts --exclude **/*.test.ts --json build/docs/typedoc.json",
     "doc:publish": "gh-pages -m \"[ci skip] Updates\" -d build/docs",
-    "test": "jest --config jest.config.js --maxWorkers=50%"
+    "test2": "jest --config jest.config.js --maxWorkers=50%",
+    "test": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js",
+    "test:compact": "jest --config jest.config.js compact_smt"
   },
   "engines": {
     "node": ">=16.4.0"
@@ -44,7 +49,7 @@
     "levelup": "^5.1.1",
     "rocksdb": "^5.2.1",
     "mongoose": "^6.5.2",
-    "snarkyjs": "^0.5.1"
+    "snarkyjs": "^0.5.2"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.16.4",
