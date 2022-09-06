@@ -22,6 +22,16 @@ export class SparseMerkleTree<
   K extends FieldElements,
   V extends FieldElements
 > {
+  /**
+   * Initial empty tree root based on poseidon hash algorithm
+   *
+   * @static
+   * @memberof SparseMerkleTree
+   */
+  static initialPoseidonHashRoot = Field(
+    '1363491840476538827947652000140631540976546729195695784589068790317102403216'
+  );
+
   protected root: Field;
   protected store: Store<V>;
   protected hasher: Hasher;
