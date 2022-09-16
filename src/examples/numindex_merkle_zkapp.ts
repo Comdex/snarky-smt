@@ -16,7 +16,6 @@ import {
   DeployArgs,
   State,
   state,
-  Circuit,
   CircuitValue,
   PublicKey,
   UInt64,
@@ -25,14 +24,12 @@ import {
   method,
   UInt32,
   PrivateKey,
-  Party,
-  Proof,
+  AccountUpdate,
 } from 'snarkyjs';
 import { SMT_EMPTY_VALUE } from '../lib/constant';
 import { NumIndexSparseMerkleTree } from '../lib/numindex_smt';
 import { NumIndexSparseMerkleProof } from '../lib/proofs';
 import { MemoryStore } from '../lib/store/memory_store';
-import { createEmptyValue } from '../lib/utils';
 
 await isReady;
 
@@ -161,10 +158,10 @@ console.log('initialCommitment: ', initialCommitment.toString());
 let leaderboardZkApp = new Leaderboard(zkappAddress);
 console.log('Deploying leaderboard..');
 if (doProofs) {
-  await Leaderboard.compile(zkappAddress);
+  await Leaderboard.compile();
 }
 let tx = await Mina.transaction(feePayer, () => {
-  Party.fundNewAccount(feePayer, { initialBalance });
+  AccountUpdate.fundNewAccount(feePayer, { initialBalance });
   leaderboardZkApp.deploy({ zkappKey });
 });
 tx.send();

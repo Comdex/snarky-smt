@@ -12,15 +12,20 @@ import {
   AccountUpdate,
   shutdown,
   method,
+  CircuitValue,
 } from 'snarkyjs';
-import { DeepSparseMerkleSubTree } from '../lib/deep_subtree';
-import { SparseMerkleProof } from '../lib/proofs';
-import { SparseMerkleTree } from '../lib/smt';
+import { NumIndexDeepSparseMerkleSubTree } from '../lib/deep_subtree';
+import { NumIndexSparseMerkleTree } from '../lib/numindex_smt';
+import { NumIndexSparseMerkleProof } from '../lib/proofs';
 import { MemoryStore } from '../lib/store/memory_store';
 
 await isReady;
 
 const doProofs = true;
+
+const treeHeight = 8;
+
+class MerkleProof extends NumIndexSparseMerkleProof(treeHeight) {}
 
 class TestZkapp extends SmartContract {
   @state(Field) commitment = State<Field>();
@@ -38,27 +43,28 @@ class TestZkapp extends SmartContract {
 
   @method
   merkle(
-    proof1: SparseMerkleProof,
-    key1: Field,
+    proof1: MerkleProof,
     value1: Field,
-    proof2: SparseMerkleProof,
-    key2: Field,
+    proof2: MerkleProof,
     value2: Field,
-    proof3: SparseMerkleProof,
-    key3: Field,
+    proof3: MerkleProof,
     value3: Field
   ) {
     let commitment = this.commitment.get();
     this.commitment.assertEquals(commitment);
 
-    let tree = new DeepSparseMerkleSubTree<Field, Field>(proof1.root, Field);
-    tree.addBranch(proof1, key1, value1);
-    tree.addBranch(proof2, key2, value2);
-    tree.addBranch(proof3, key3, value3);
+    let tree = new NumIndexDeepSparseMerkleSubTree<Field>(
+      proof1.root,
+      Field,
+      treeHeight
+    );
+    tree.addBranch(proof1, value1);
+    tree.addBranch(proof2, value2);
+    tree.addBranch(proof3, value3);
 
-    let finalRoot = tree.update(key1, Field(88));
-    finalRoot = tree.update(key2, Field(99));
-    finalRoot = tree.update(key3, Field(1010));
+    let finalRoot = tree.update(proof1.path, Field(88));
+    finalRoot = tree.update(proof2.path, Field(99));
+    finalRoot = tree.update(proof3.path, Field(1010));
 
     Circuit.asProver(() => {
       console.log('finalRoot: ', finalRoot.toString());
@@ -74,14 +80,15 @@ let feePayerKey = local.testAccounts[0].privateKey;
 let zkappKey = PrivateKey.random();
 let zkappAddress = zkappKey.toPublicKey();
 
-let tree = await SparseMerkleTree.buildNewTree<Field, Field>(
-  new MemoryStore<Field>()
+let tree = await NumIndexSparseMerkleTree.buildNewTree<Field>(
+  new MemoryStore<Field>(),
+  treeHeight
 );
-const key1 = Field(1);
+const key1 = 0n;
 const value1 = Field(33);
-const key2 = Field(2);
+const key2 = 1n;
 const value2 = Field(55);
-const key3 = Field(5);
+const key3 = 2n;
 const value3 = Field(9999999);
 
 let root = await tree.update(key1, value1);
@@ -127,17 +134,7 @@ async function test() {
 
   console.log('start method');
   tx = await local.transaction(feePayerKey, () => {
-    zkapp.merkle(
-      proof1,
-      key1,
-      value1,
-      proof2,
-      key2,
-      value2,
-      proof3,
-      key3,
-      value3
-    );
+    zkapp.merkle(proof1, value1, proof2, value2, proof3, value3);
 
     if (!doProofs) {
       zkapp.sign(zkappKey);
