@@ -1,7 +1,10 @@
 export { SparseMerkleTree } from './lib/smt';
 export { MultiVersionSparseMerkleTree } from './lib/multiversion_smt';
 export { NumIndexSparseMerkleTree } from './lib/numindex_smt';
-export { DeepSparseMerkleSubTree } from './lib/deep_subtree';
+export {
+  DeepSparseMerkleSubTree,
+  NumIndexDeepSparseMerkleSubTree,
+} from './lib/deep_subtree';
 export type {
   FieldElements,
   SparseCompactMerkleProofJSON,
