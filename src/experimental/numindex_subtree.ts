@@ -12,7 +12,6 @@ import {
   AccountUpdate,
   shutdown,
   method,
-  CircuitValue,
 } from 'snarkyjs';
 import { NumIndexDeepSparseMerkleSubTree } from '../lib/deep_subtree';
 import { NumIndexSparseMerkleTree } from '../lib/numindex_smt';
@@ -111,10 +110,7 @@ async function test() {
 
   if (doProofs) {
     console.time('compile');
-    // let start = new Date().getTime();
     await TestZkapp.compile();
-    // let end = new Date().getTime();
-    // console.log('compile end: ', (end - start) / 1000);
     console.timeEnd('compile');
   }
 

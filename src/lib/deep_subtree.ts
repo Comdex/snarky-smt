@@ -17,23 +17,7 @@ import { createEmptyValue } from './utils';
 
 export { DeepSparseMerkleSubTree, NumIndexDeepSparseMerkleSubTree };
 
-class BaseFieldArray extends CircuitValue {
-  arr: Field[];
-
-  constructor(arr: Field[]) {
-    super();
-    this.arr = arr;
-  }
-}
-
-function FieldArray(num: number): typeof BaseFieldArray {
-  class FieldArray_ extends BaseFieldArray {}
-  arrayProp(Field, num)(FieldArray_.prototype, 'arr');
-
-  return FieldArray_;
-}
-
-class SideNodes extends CircuitValue {
+class SMTSideNodes extends CircuitValue {
   @arrayProp(Field, SMT_DEPTH) arr: Field[];
 
   constructor(arr: Field[]) {
@@ -93,7 +77,7 @@ class DeepSparseMerkleSubTree<
     const path = this.hasher(key.toFields());
     const pathBits = path.toBits(SMT_DEPTH);
 
-    let sideNodesArr: SideNodes = Circuit.witness(SideNodes, () => {
+    let sideNodesArr: SMTSideNodes = Circuit.witness(SMTSideNodes, () => {
       let sideNodes: Field[] = [];
       let nodeHash: Field = this.root;
 
@@ -108,7 +92,7 @@ class DeepSparseMerkleSubTree<
         }
       }
 
-      return new SideNodes(sideNodes);
+      return new SMTSideNodes(sideNodes);
     });
 
     let sideNodes = sideNodesArr.arr;
@@ -201,9 +185,15 @@ class NumIndexDeepSparseMerkleSubTree<V extends CircuitValue | Field> {
   public update(path: Field, value: V): Field {
     const pathBits = path.toBits(this.height);
 
-    class Fields extends FieldArray(this.height) {}
+    class SideNodes extends CircuitValue {
+      @arrayProp(Field, this.height) arr: Field[];
+      constructor(arr: Field[]) {
+        super();
+        this.arr = arr;
+      }
+    }
 
-    let fieldArr: Fields = Circuit.witness(Fields, () => {
+    let fieldArr: SideNodes = Circuit.witness(SideNodes, () => {
       let sideNodes: Field[] = [];
       let nodeHash: Field = this.root;
       for (let i = 0; i < this.height; i++) {
@@ -217,7 +207,7 @@ class NumIndexDeepSparseMerkleSubTree<V extends CircuitValue | Field> {
         }
       }
 
-      return new Fields(sideNodes);
+      return new SideNodes(sideNodes);
     });
 
     let sideNodes = fieldArr.arr;
