@@ -82,7 +82,13 @@ class DeepSparseMerkleSubTree<
       let nodeHash: Field = this.root;
 
       for (let i = 0; i < SMT_DEPTH; i++) {
-        const currentValue = this.nodeStore.get(nodeHash.toString())!;
+        const currentValue = this.nodeStore.get(nodeHash.toString());
+        if (currentValue === undefined) {
+          throw new Error(
+            'Make sure you have added the correct proof, key and value using the addBranch method'
+          );
+        }
+
         if (pathBits[i].toBoolean()) {
           sideNodes.push(currentValue[0]);
           nodeHash = currentValue[1];
@@ -92,13 +98,18 @@ class DeepSparseMerkleSubTree<
         }
       }
 
-      return new SMTSideNodes(sideNodes);
+      return new SMTSideNodes(sideNodes).toConstant();
     });
 
     let sideNodes = sideNodesArr.arr;
 
     const oldValueHash = Circuit.witness(Field, () => {
-      return this.valueStore.get(path.toString())!;
+      let oldValueHash = this.valueStore.get(path.toString());
+      if (oldValueHash === undefined) {
+        throw new Error('oldValueHash does not exist');
+      }
+
+      return oldValueHash.toConstant();
     });
     impliedRoot(sideNodes, pathBits, oldValueHash).assertEquals(this.root);
 
@@ -197,7 +208,13 @@ class NumIndexDeepSparseMerkleSubTree<V extends CircuitValue | Field> {
       let sideNodes: Field[] = [];
       let nodeHash: Field = this.root;
       for (let i = 0; i < this.height; i++) {
-        const currentValue = this.nodeStore.get(nodeHash.toString())!;
+        const currentValue = this.nodeStore.get(nodeHash.toString());
+        if (currentValue === undefined) {
+          throw new Error(
+            'Make sure you have added the correct proof, key and value using the addBranch method'
+          );
+        }
+
         if (pathBits[i].toBoolean()) {
           sideNodes.push(currentValue[0]);
           nodeHash = currentValue[1];
@@ -207,13 +224,17 @@ class NumIndexDeepSparseMerkleSubTree<V extends CircuitValue | Field> {
         }
       }
 
-      return new SideNodes(sideNodes);
+      return new SideNodes(sideNodes).toConstant();
     });
 
     let sideNodes = fieldArr.arr;
 
     const oldValueHash = Circuit.witness(Field, () => {
-      return this.valueStore.get(path.toString())!;
+      let oldValueHash = this.valueStore.get(path.toString());
+      if (oldValueHash === undefined) {
+        throw new Error('oldValueHash does not exist');
+      }
+      return oldValueHash.toConstant();
     });
     impliedRootForHeight(
       sideNodes,
