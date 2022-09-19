@@ -1,9 +1,7 @@
-import { Field, isReady } from 'snarkyjs';
+import { Field, isReady, shutdown } from 'snarkyjs';
 import { CDeepSparseMerkleSubTree } from '../lib/compact_tree/deep_subtree';
-import { c_verifyProof } from '../lib/compact_tree/proofs';
 import { CSparseMerkleTree } from '../lib/compact_tree/smt';
 import { MemoryStore } from '../lib/store/memory_store';
-import { printBits } from '../lib/utils';
 
 await isReady;
 
@@ -32,3 +30,5 @@ await subTree.addBranch(proof2, Field(3), Field(4));
 let root3 = await subTree.update(Field(1), Field(5));
 root3 = await subTree.update(Field(3), Field(7));
 console.log('root3: ', root3.toString());
+
+shutdown();
