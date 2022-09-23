@@ -1,6 +1,6 @@
 {
   "name": "snarky-smt",
-  "version": "0.3.4",
+  "version": "0.3.6",
   "description": "Sparse Merkle Tree for SnarkyJS",
   "main": "build/module/index.js",
   "typings": "build/module/index.d.ts",
@@ -32,7 +32,7 @@
     "example:numindex": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/examples/numindex_merkle_zkapp.js",
     "example": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/examples/merkle_zkapp.js",
     "build:main": "tsc -p tsconfig.json",
-    "build:module": "tsc -p tsconfig.module.json",
+    "build:module": "rm -rf ./build && tsc -p tsconfig.module.json",
     "watch:build": "tsc -p tsconfig.json -w",
     "doc:html": "typedoc src/index.ts --exclude **/*.test.ts --out build/docs",
     "doc:json": "typedoc src/index.ts --exclude **/*.test.ts --json build/docs/typedoc.json",

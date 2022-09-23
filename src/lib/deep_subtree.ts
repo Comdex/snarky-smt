@@ -129,6 +129,8 @@ class DeepSparseMerkleSubTree<
       this.hasher(value.toFields())
     );
 
+    let realValueHash = currentHash;
+
     Circuit.asProver(() => {
       this.nodeStore.set(currentHash.toString(), [currentHash, Field.zero]);
     });
@@ -149,6 +151,9 @@ class DeepSparseMerkleSubTree<
       });
     }
 
+    Circuit.asProver(() => {
+      this.valueStore.set(path.toString(), realValueHash);
+    });
     this.root = currentHash;
     return currentHash;
   }
@@ -264,6 +269,8 @@ class NumIndexDeepSparseMerkleSubTree<V extends CircuitValue | Field> {
       this.hasher(value.toFields())
     );
 
+    let realValueHash = currentHash;
+
     Circuit.asProver(() => {
       this.nodeStore.set(currentHash.toString(), [currentHash, Field.zero]);
     });
@@ -283,6 +290,10 @@ class NumIndexDeepSparseMerkleSubTree<V extends CircuitValue | Field> {
         this.nodeStore.set(currentHash.toString(), currentValue);
       });
     }
+
+    Circuit.asProver(() => {
+      this.valueStore.set(path.toString(), realValueHash);
+    });
 
     this.root = currentHash;
     return currentHash;
@@ -399,6 +410,10 @@ class NumIndexDeepSparseMerkleSubTreeForField {
         this.nodeStore.set(currentHash.toString(), currentValue);
       });
     }
+
+    Circuit.asProver(() => {
+      this.valueStore.set(path.toString(), valueHash);
+    });
 
     this.root = currentHash;
     return currentHash;
