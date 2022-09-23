@@ -104,6 +104,20 @@ export class BaseNumIndexSparseMerkleProof extends CircuitValue {
     return newRoot.equals(root).toBoolean();
   }
 
+  verifyByField(
+    expectedRoot: Field,
+    valueHash: Field,
+    hasher: Hasher = Poseidon.hash
+  ): boolean {
+    if (this.root.equals(expectedRoot).not().toBoolean()) {
+      return false;
+    }
+
+    let newRoot = this.computeRootByField(valueHash, hasher);
+
+    return newRoot.equals(expectedRoot).toBoolean();
+  }
+
   /**
    * Calculate new root based on value and valueType in circuit.
    *
@@ -178,6 +192,25 @@ export class BaseNumIndexSparseMerkleProof extends CircuitValue {
         [currentHash, node]
       );
 
+      currentHash = hasher(currentValue);
+    }
+    return currentHash;
+  }
+
+  computeRootByField(valueHash: Field, hasher: Hasher = Poseidon.hash): Field {
+    let h = this.height();
+    let currentHash: Field = valueHash;
+    Field(this.sideNodes.length).assertEquals(h);
+
+    const pathBits = this.path.toBits(h);
+    for (let i = h - 1; i >= 0; i--) {
+      let node = this.sideNodes[i];
+      let currentValue: Field[] = [];
+      if (pathBits[i].toBoolean()) {
+        currentValue = [node, currentHash];
+      } else {
+        currentValue = [currentHash, node];
+      }
       currentHash = hasher(currentValue);
     }
     return currentHash;
