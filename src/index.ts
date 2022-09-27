@@ -4,6 +4,7 @@ export { NumIndexSparseMerkleTree } from './lib/numindex_smt';
 export {
   DeepSparseMerkleSubTree,
   NumIndexDeepSparseMerkleSubTree,
+  NumIndexDeepSparseMerkleSubTreeForField,
 } from './lib/deep_subtree';
 export type {
   FieldElements,
