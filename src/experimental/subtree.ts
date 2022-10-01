@@ -136,16 +136,11 @@ async function test() {
       value3
     );
 
-    if (!doProofs) {
-      zkapp.sign(zkappKey);
-    }
+    if (!doProofs) zkapp.sign(zkappKey);
   });
-  if (doProofs) {
-    await tx.prove();
-    tx.send();
-  } else {
-    tx.send();
-  }
+  if (doProofs) await tx.prove();
+  tx.send();
+
   console.log('end method');
   shutdown();
 }

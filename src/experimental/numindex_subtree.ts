@@ -135,12 +135,8 @@ async function test() {
     AccountUpdate.fundNewAccount(feePayerKey);
     zkapp.deploy({ zkappKey });
   });
-  if (doProofs) {
-    await tx.prove();
-    tx.send();
-  } else {
-    tx.send();
-  }
+  if (doProofs) await tx.prove();
+  tx.send();
 
   console.log('deploy done');
 
@@ -148,16 +144,10 @@ async function test() {
   tx = await local.transaction(feePayerKey, () => {
     zkapp.merkle(proof1, value1, proof2, value2, proof3, value3);
 
-    if (!doProofs) {
-      zkapp.sign(zkappKey);
-    }
+    if (!doProofs) zkapp.sign(zkappKey);
   });
-  if (doProofs) {
-    await tx.prove();
-    tx.send();
-  } else {
-    tx.send();
-  }
+  if (doProofs) await tx.prove();
+  tx.send();
   console.log('end method');
   shutdown();
 }
