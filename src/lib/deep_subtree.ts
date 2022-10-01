@@ -11,6 +11,7 @@ import { SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
 import {
   BaseNumIndexSparseMerkleProof,
   Hasher,
+  NumIndexSparseMerkleProof,
   SparseMerkleProof,
 } from './proofs';
 import { createEmptyValue } from './utils';
@@ -57,8 +58,12 @@ class DeepSparseMerkleSubTree<
     return this.root;
   }
 
+  public getHeight(): number {
+    return SMT_DEPTH;
+  }
+
   public addBranch(proof: SparseMerkleProof, key: K, value: V) {
-    Circuit.asProver(() => {
+    let runAddBranch = () => {
       const keyHash = this.hasher(key.toFields());
       let valueHash = SMT_EMPTY_VALUE;
       // @ts-ignore
@@ -79,18 +84,29 @@ class DeepSparseMerkleSubTree<
       });
 
       this.valueStore.set(keyHash.toString(), valueHash);
-    });
+    };
+
+    if (Circuit.inCheckedComputation()) {
+      Circuit.asProver(runAddBranch);
+    } else {
+      runAddBranch();
+    }
   }
 
-  public update(key: K, value: V): Field {
+  public prove(key: K): SparseMerkleProof {
     const path = this.hasher(key.toFields());
-    const pathBits = path.toBits(SMT_DEPTH);
-
-    let sideNodesArr: SMTSideNodes = Circuit.witness(SMTSideNodes, () => {
+    let runProve = () => {
+      let pathStr = path.toString();
+      let valueHash = this.valueStore.get(pathStr);
+      if (valueHash === undefined) {
+        throw new Error(
+          `The DeepSubTree does not contain a branch of the path: ${pathStr}`
+        );
+      }
+      const pathBits = path.toBits(this.getHeight());
       let sideNodes: Field[] = [];
       let nodeHash: Field = this.root;
-
-      for (let i = 0; i < SMT_DEPTH; i++) {
+      for (let i = 0; i < this.getHeight(); i++) {
         const currentValue = this.nodeStore.get(nodeHash.toString());
         if (currentValue === undefined) {
           throw new Error(
@@ -107,55 +123,148 @@ class DeepSparseMerkleSubTree<
         }
       }
 
-      return new SMTSideNodes(sideNodes).toConstant();
-    });
+      return new SparseMerkleProof(sideNodes, this.root).toConstant();
+    };
 
-    let sideNodes = sideNodesArr.arr;
+    if (Circuit.inCheckedComputation()) {
+      return Circuit.witness(BaseNumIndexSparseMerkleProof, runProve);
+    } else {
+      return runProve();
+    }
+  }
 
-    const oldValueHash = Circuit.witness(Field, () => {
+  public update(key: K, value: V): Field {
+    const path = this.hasher(key.toFields());
+    const pathBits = path.toBits(this.getHeight());
+
+    if (Circuit.inCheckedComputation()) {
+      let sideNodesArr: SMTSideNodes = Circuit.witness(SMTSideNodes, () => {
+        let sideNodes: Field[] = [];
+        let nodeHash: Field = this.root;
+
+        for (let i = 0; i < this.getHeight(); i++) {
+          const currentValue = this.nodeStore.get(nodeHash.toString());
+          if (currentValue === undefined) {
+            throw new Error(
+              'Make sure you have added the correct proof, key and value using the addBranch method'
+            );
+          }
+
+          if (pathBits[i].toBoolean()) {
+            sideNodes.push(currentValue[0]);
+            nodeHash = currentValue[1];
+          } else {
+            sideNodes.push(currentValue[1]);
+            nodeHash = currentValue[0];
+          }
+        }
+
+        return new SMTSideNodes(sideNodes).toConstant();
+      });
+
+      let sideNodes = sideNodesArr.arr;
+
+      const oldValueHash = Circuit.witness(Field, () => {
+        let oldValueHash = this.valueStore.get(path.toString());
+        if (oldValueHash === undefined) {
+          throw new Error('oldValueHash does not exist');
+        }
+
+        return oldValueHash.toConstant();
+      });
+      impliedRootInCircuit(sideNodes, pathBits, oldValueHash).assertEquals(
+        this.root
+      );
+
+      let currentHash = Circuit.if(
+        // @ts-ignore
+        value.equals(this.emptyValueOfValueType),
+        SMT_EMPTY_VALUE,
+        this.hasher(value.toFields())
+      );
+
+      let realValueHash = currentHash;
+
+      Circuit.asProver(() => {
+        this.nodeStore.set(currentHash.toString(), [currentHash, Field.zero]);
+      });
+
+      for (let i = this.getHeight() - 1; i >= 0; i--) {
+        let sideNode = sideNodes[i];
+
+        let currentValue = Circuit.if(
+          pathBits[i],
+          [sideNode, currentHash],
+          [currentHash, sideNode]
+        );
+
+        currentHash = this.hasher(currentValue);
+
+        Circuit.asProver(() => {
+          this.nodeStore.set(currentHash.toString(), currentValue);
+        });
+      }
+
+      Circuit.asProver(() => {
+        this.valueStore.set(path.toString(), realValueHash);
+      });
+      this.root = currentHash;
+    } else {
+      let sideNodes: Field[] = [];
+      let nodeHash: Field = this.root;
+
+      for (let i = 0; i < this.getHeight(); i++) {
+        const currentValue = this.nodeStore.get(nodeHash.toString());
+        if (currentValue === undefined) {
+          throw new Error(
+            'Make sure you have added the correct proof, key and value using the addBranch method'
+          );
+        }
+
+        if (pathBits[i].toBoolean()) {
+          sideNodes.push(currentValue[0]);
+          nodeHash = currentValue[1];
+        } else {
+          sideNodes.push(currentValue[1]);
+          nodeHash = currentValue[0];
+        }
+      }
+
       let oldValueHash = this.valueStore.get(path.toString());
       if (oldValueHash === undefined) {
         throw new Error('oldValueHash does not exist');
       }
 
-      return oldValueHash.toConstant();
-    });
-    impliedRoot(sideNodes, pathBits, oldValueHash).assertEquals(this.root);
+      impliedRoot(sideNodes, pathBits, oldValueHash).assertEquals(this.root);
 
-    let currentHash = Circuit.if(
+      let currentHash = SMT_EMPTY_VALUE;
       // @ts-ignore
-      value.equals(this.emptyValueOfValueType),
-      SMT_EMPTY_VALUE,
-      this.hasher(value.toFields())
-    );
+      if (!value.equals(this.emptyValueOfValueType).toBoolean()) {
+        currentHash = this.hasher(value.toFields());
+      }
 
-    let realValueHash = currentHash;
-
-    Circuit.asProver(() => {
+      let realValueHash = currentHash;
       this.nodeStore.set(currentHash.toString(), [currentHash, Field.zero]);
-    });
 
-    for (let i = SMT_DEPTH - 1; i >= 0; i--) {
-      let sideNode = sideNodes[i];
+      for (let i = this.getHeight() - 1; i >= 0; i--) {
+        let sideNode = sideNodes[i];
 
-      let currentValue = Circuit.if(
-        pathBits[i],
-        [sideNode, currentHash],
-        [currentHash, sideNode]
-      );
+        let currentValue: Field[] = [];
+        if (pathBits[i].toBoolean()) {
+          currentValue = [sideNode, currentHash];
+        } else {
+          currentValue = [currentHash, sideNode];
+        }
+        currentHash = this.hasher(currentValue);
 
-      currentHash = this.hasher(currentValue);
-
-      Circuit.asProver(() => {
         this.nodeStore.set(currentHash.toString(), currentValue);
-      });
+      }
+
+      this.valueStore.set(path.toString(), realValueHash);
+      this.root = currentHash;
     }
 
-    Circuit.asProver(() => {
-      this.valueStore.set(path.toString(), realValueHash);
-    });
-    this.root = currentHash;
-    return currentHash;
+    return this.root;
   }
 }
 
@@ -187,8 +296,12 @@ class NumIndexDeepSparseMerkleSubTree<V extends CircuitValue | Field> {
     return this.root;
   }
 
+  public getHeight(): number {
+    return this.height;
+  }
+
   public addBranch(proof: BaseNumIndexSparseMerkleProof, value: V) {
-    Circuit.asProver(() => {
+    let runAddBranch = () => {
       const keyHash = proof.path;
       let valueHash = SMT_EMPTY_VALUE;
       // @ts-ignore
@@ -209,21 +322,25 @@ class NumIndexDeepSparseMerkleSubTree<V extends CircuitValue | Field> {
       });
 
       this.valueStore.set(keyHash.toString(), valueHash);
-    });
+    };
+
+    if (Circuit.inCheckedComputation()) {
+      Circuit.asProver(runAddBranch);
+    } else {
+      runAddBranch();
+    }
   }
 
-  public update(path: Field, value: V): Field {
-    const pathBits = path.toBits(this.height);
-
-    class SideNodes extends CircuitValue {
-      @arrayProp(Field, this.height) arr: Field[];
-      constructor(arr: Field[]) {
-        super();
-        this.arr = arr;
+  public prove(path: Field): BaseNumIndexSparseMerkleProof {
+    let runProve = () => {
+      let pathStr = path.toString();
+      let valueHash = this.valueStore.get(pathStr);
+      if (valueHash === undefined) {
+        throw new Error(
+          `The DeepSubTree does not contain a branch of the path: ${pathStr}`
+        );
       }
-    }
-
-    let fieldArr: SideNodes = Circuit.witness(SideNodes, () => {
+      const pathBits = path.toBits(this.height);
       let sideNodes: Field[] = [];
       let nodeHash: Field = this.root;
       for (let i = 0; i < this.height; i++) {
@@ -243,60 +360,171 @@ class NumIndexDeepSparseMerkleSubTree<V extends CircuitValue | Field> {
         }
       }
 
-      return new SideNodes(sideNodes).toConstant();
-    });
+      class InnerNumIndexSparseMerkleProof extends NumIndexSparseMerkleProof(
+        this.height
+      ) {}
 
-    let sideNodes = fieldArr.arr;
+      return new InnerNumIndexSparseMerkleProof(
+        this.root,
+        path,
+        sideNodes
+      ).toConstant();
+    };
 
-    const oldValueHash = Circuit.witness(Field, () => {
+    if (Circuit.inCheckedComputation()) {
+      return Circuit.witness(BaseNumIndexSparseMerkleProof, runProve);
+    } else {
+      return runProve();
+    }
+  }
+
+  public update(path: Field, value: V): Field {
+    const pathBits = path.toBits(this.height);
+
+    if (Circuit.inCheckedComputation()) {
+      class SideNodes extends CircuitValue {
+        @arrayProp(Field, this.height) arr: Field[];
+        constructor(arr: Field[]) {
+          super();
+          this.arr = arr;
+        }
+      }
+
+      let fieldArr: SideNodes = Circuit.witness(SideNodes, () => {
+        let sideNodes: Field[] = [];
+        let nodeHash: Field = this.root;
+        for (let i = 0; i < this.height; i++) {
+          const currentValue = this.nodeStore.get(nodeHash.toString());
+          if (currentValue === undefined) {
+            throw new Error(
+              'Make sure you have added the correct proof, key and value using the addBranch method'
+            );
+          }
+
+          if (pathBits[i].toBoolean()) {
+            sideNodes.push(currentValue[0]);
+            nodeHash = currentValue[1];
+          } else {
+            sideNodes.push(currentValue[1]);
+            nodeHash = currentValue[0];
+          }
+        }
+
+        return new SideNodes(sideNodes).toConstant();
+      });
+
+      let sideNodes = fieldArr.arr;
+
+      const oldValueHash = Circuit.witness(Field, () => {
+        let oldValueHash = this.valueStore.get(path.toString());
+        if (oldValueHash === undefined) {
+          throw new Error('oldValueHash does not exist');
+        }
+        return oldValueHash.toConstant();
+      });
+      impliedRootForHeightInCircuit(
+        sideNodes,
+        pathBits,
+        oldValueHash,
+        this.height
+      ).assertEquals(this.root);
+
+      let currentHash = Circuit.if(
+        // @ts-ignore
+        value.equals(this.emptyValueOfValueType),
+        SMT_EMPTY_VALUE,
+        this.hasher(value.toFields())
+      );
+
+      let realValueHash = currentHash;
+
+      Circuit.asProver(() => {
+        this.nodeStore.set(currentHash.toString(), [currentHash, Field.zero]);
+      });
+
+      for (let i = this.height - 1; i >= 0; i--) {
+        let sideNode = sideNodes[i];
+
+        let currentValue = Circuit.if(
+          pathBits[i],
+          [sideNode, currentHash],
+          [currentHash, sideNode]
+        );
+
+        currentHash = this.hasher(currentValue);
+
+        Circuit.asProver(() => {
+          this.nodeStore.set(currentHash.toString(), currentValue);
+        });
+      }
+
+      Circuit.asProver(() => {
+        this.valueStore.set(path.toString(), realValueHash);
+      });
+
+      this.root = currentHash;
+    } else {
+      let sideNodes: Field[] = [];
+      let nodeHash: Field = this.root;
+      for (let i = 0; i < this.height; i++) {
+        const currentValue = this.nodeStore.get(nodeHash.toString());
+        if (currentValue === undefined) {
+          throw new Error(
+            'Make sure you have added the correct proof, key and value using the addBranch method'
+          );
+        }
+
+        if (pathBits[i].toBoolean()) {
+          sideNodes.push(currentValue[0]);
+          nodeHash = currentValue[1];
+        } else {
+          sideNodes.push(currentValue[1]);
+          nodeHash = currentValue[0];
+        }
+      }
+
       let oldValueHash = this.valueStore.get(path.toString());
       if (oldValueHash === undefined) {
         throw new Error('oldValueHash does not exist');
       }
-      return oldValueHash.toConstant();
-    });
-    impliedRootForHeight(
-      sideNodes,
-      pathBits,
-      oldValueHash,
-      this.height
-    ).assertEquals(this.root);
 
-    let currentHash = Circuit.if(
+      impliedRootForHeight(
+        sideNodes,
+        pathBits,
+        oldValueHash,
+        this.height
+      ).assertEquals(this.root);
+
+      let currentHash = SMT_EMPTY_VALUE;
       // @ts-ignore
-      value.equals(this.emptyValueOfValueType),
-      SMT_EMPTY_VALUE,
-      this.hasher(value.toFields())
-    );
+      if (!value.equals(this.emptyValueOfValueType).toBoolean()) {
+        currentHash = this.hasher(value.toFields());
+      }
 
-    let realValueHash = currentHash;
-
-    Circuit.asProver(() => {
+      let realValueHash = currentHash;
       this.nodeStore.set(currentHash.toString(), [currentHash, Field.zero]);
-    });
 
-    for (let i = this.height - 1; i >= 0; i--) {
-      let sideNode = sideNodes[i];
+      for (let i = this.height - 1; i >= 0; i--) {
+        let sideNode = sideNodes[i];
 
-      let currentValue = Circuit.if(
-        pathBits[i],
-        [sideNode, currentHash],
-        [currentHash, sideNode]
-      );
+        let currentValue: Field[] = [];
+        if (pathBits[i].toBoolean()) {
+          currentValue = [sideNode, currentHash];
+        } else {
+          currentValue = [currentHash, sideNode];
+        }
 
-      currentHash = this.hasher(currentValue);
+        currentHash = this.hasher(currentValue);
 
-      Circuit.asProver(() => {
         this.nodeStore.set(currentHash.toString(), currentValue);
-      });
+      }
+
+      this.valueStore.set(path.toString(), realValueHash);
+
+      this.root = currentHash;
     }
 
-    Circuit.asProver(() => {
-      this.valueStore.set(path.toString(), realValueHash);
-    });
-
-    this.root = currentHash;
-    return currentHash;
+    return this.root;
   }
 }
 
@@ -319,8 +547,12 @@ class NumIndexDeepSparseMerkleSubTreeForField {
     return this.root;
   }
 
+  public getHeight(): number {
+    return this.height;
+  }
+
   public addBranch(proof: BaseNumIndexSparseMerkleProof, valueHash: Field) {
-    Circuit.asProver(() => {
+    let runAddBranch = () => {
       const keyHash = proof.path;
 
       let updates = getUpdatesBySideNodes(
@@ -336,21 +568,25 @@ class NumIndexDeepSparseMerkleSubTreeForField {
       });
 
       this.valueStore.set(keyHash.toString(), valueHash);
-    });
+    };
+
+    if (Circuit.inCheckedComputation()) {
+      Circuit.asProver(runAddBranch);
+    } else {
+      runAddBranch();
+    }
   }
 
-  public update(path: Field, valueHash: Field): Field {
-    const pathBits = path.toBits(this.height);
-
-    class SideNodes extends CircuitValue {
-      @arrayProp(Field, this.height) arr: Field[];
-      constructor(arr: Field[]) {
-        super();
-        this.arr = arr;
+  public prove(path: Field): BaseNumIndexSparseMerkleProof {
+    let runProve = () => {
+      let pathStr = path.toString();
+      let valueHash = this.valueStore.get(pathStr);
+      if (valueHash === undefined) {
+        throw new Error(
+          `The DeepSubTree does not contain a branch of the path: ${pathStr}`
+        );
       }
-    }
-
-    let fieldArr: SideNodes = Circuit.witness(SideNodes, () => {
+      const pathBits = path.toBits(this.height);
       let sideNodes: Field[] = [];
       let nodeHash: Field = this.root;
       for (let i = 0; i < this.height; i++) {
@@ -370,53 +606,155 @@ class NumIndexDeepSparseMerkleSubTreeForField {
         }
       }
 
-      return new SideNodes(sideNodes).toConstant();
-    });
+      class InnerNumIndexSparseMerkleProof extends NumIndexSparseMerkleProof(
+        this.height
+      ) {}
 
-    let sideNodes = fieldArr.arr;
+      return new InnerNumIndexSparseMerkleProof(
+        this.root,
+        path,
+        sideNodes
+      ).toConstant();
+    };
 
-    const oldValueHash = Circuit.witness(Field, () => {
-      let oldValueHash = this.valueStore.get(path.toString());
+    if (Circuit.inCheckedComputation()) {
+      return Circuit.witness(BaseNumIndexSparseMerkleProof, runProve);
+    } else {
+      return runProve();
+    }
+  }
+
+  public update(path: Field, valueHash: Field): Field {
+    const pathBits = path.toBits(this.height);
+
+    if (Circuit.inCheckedComputation()) {
+      class SideNodes extends CircuitValue {
+        @arrayProp(Field, this.height) arr: Field[];
+        constructor(arr: Field[]) {
+          super();
+          this.arr = arr;
+        }
+      }
+
+      let fieldArr: SideNodes = Circuit.witness(SideNodes, () => {
+        let sideNodes: Field[] = [];
+        let nodeHash: Field = this.root;
+        for (let i = 0; i < this.height; i++) {
+          const currentValue = this.nodeStore.get(nodeHash.toString());
+          if (currentValue === undefined) {
+            throw new Error(
+              'Make sure you have added the correct proof, key and value using the addBranch method'
+            );
+          }
+
+          if (pathBits[i].toBoolean()) {
+            sideNodes.push(currentValue[0]);
+            nodeHash = currentValue[1];
+          } else {
+            sideNodes.push(currentValue[1]);
+            nodeHash = currentValue[0];
+          }
+        }
+
+        return new SideNodes(sideNodes).toConstant();
+      });
+
+      let sideNodes = fieldArr.arr;
+      const oldValueHash = Circuit.witness(Field, () => {
+        let oldValueHash = this.valueStore.get(path.toString());
+        if (oldValueHash === undefined) {
+          throw new Error('oldValueHash does not exist');
+        }
+        return oldValueHash.toConstant();
+      });
+      impliedRootForHeightInCircuit(
+        sideNodes,
+        pathBits,
+        oldValueHash,
+        this.height
+      ).assertEquals(this.root);
+
+      let currentHash = valueHash;
+
+      Circuit.asProver(() => {
+        this.nodeStore.set(currentHash.toString(), [currentHash, Field.zero]);
+      });
+
+      for (let i = this.height - 1; i >= 0; i--) {
+        let sideNode = sideNodes[i];
+
+        let currentValue = Circuit.if(
+          pathBits[i],
+          [sideNode, currentHash],
+          [currentHash, sideNode]
+        );
+
+        currentHash = this.hasher(currentValue);
+
+        Circuit.asProver(() => {
+          this.nodeStore.set(currentHash.toString(), currentValue);
+        });
+      }
+
+      Circuit.asProver(() => {
+        this.valueStore.set(path.toString(), valueHash);
+      });
+
+      this.root = currentHash;
+    } else {
+      let sideNodes: Field[] = [];
+      let nodeHash: Field = this.root;
+      for (let i = 0; i < this.height; i++) {
+        const currentValue = this.nodeStore.get(nodeHash.toString());
+        if (currentValue === undefined) {
+          throw new Error(
+            'Make sure you have added the correct proof, key and value using the addBranch method'
+          );
+        }
+
+        if (pathBits[i].toBoolean()) {
+          sideNodes.push(currentValue[0]);
+          nodeHash = currentValue[1];
+        } else {
+          sideNodes.push(currentValue[1]);
+          nodeHash = currentValue[0];
+        }
+      }
+
+      const oldValueHash = this.valueStore.get(path.toString());
       if (oldValueHash === undefined) {
         throw new Error('oldValueHash does not exist');
       }
-      return oldValueHash.toConstant();
-    });
-    impliedRootForHeight(
-      sideNodes,
-      pathBits,
-      oldValueHash,
-      this.height
-    ).assertEquals(this.root);
 
-    let currentHash = valueHash;
+      impliedRootForHeight(
+        sideNodes,
+        pathBits,
+        oldValueHash,
+        this.height
+      ).assertEquals(this.root);
 
-    Circuit.asProver(() => {
+      let currentHash = valueHash;
       this.nodeStore.set(currentHash.toString(), [currentHash, Field.zero]);
-    });
 
-    for (let i = this.height - 1; i >= 0; i--) {
-      let sideNode = sideNodes[i];
+      for (let i = this.height - 1; i >= 0; i--) {
+        let sideNode = sideNodes[i];
 
-      let currentValue = Circuit.if(
-        pathBits[i],
-        [sideNode, currentHash],
-        [currentHash, sideNode]
-      );
+        let currentValue: Field[] = [];
+        if (pathBits[i].toBoolean()) {
+          currentValue = [sideNode, currentHash];
+        } else {
+          currentValue = [currentHash, sideNode];
+        }
 
-      currentHash = this.hasher(currentValue);
-
-      Circuit.asProver(() => {
+        currentHash = this.hasher(currentValue);
         this.nodeStore.set(currentHash.toString(), currentValue);
-      });
+      }
+
+      this.valueStore.set(path.toString(), valueHash);
+      this.root = currentHash;
     }
 
-    Circuit.asProver(() => {
-      this.valueStore.set(path.toString(), valueHash);
-    });
-
-    this.root = currentHash;
-    return currentHash;
+    return this.root;
   }
 }
 
@@ -449,9 +787,48 @@ function getUpdatesBySideNodes(
   return updates;
 }
 
+function impliedRootInCircuit(
+  sideNodes: Field[],
+  pathBits: Bool[],
+  leaf: Field
+): Field {
+  let impliedRoot = leaf;
+  for (let i = SMT_DEPTH - 1; i >= 0; i--) {
+    let sideNode = sideNodes[i];
+    let [left, right] = Circuit.if(
+      pathBits[i],
+      [sideNode, impliedRoot],
+      [impliedRoot, sideNode]
+    );
+    impliedRoot = Poseidon.hash([left, right]);
+  }
+  return impliedRoot;
+}
+
 function impliedRoot(sideNodes: Field[], pathBits: Bool[], leaf: Field): Field {
   let impliedRoot = leaf;
   for (let i = SMT_DEPTH - 1; i >= 0; i--) {
+    let sideNode = sideNodes[i];
+    let currentValue: Field[] = [];
+    if (pathBits[i].toBoolean()) {
+      currentValue = [sideNode, impliedRoot];
+    } else {
+      currentValue = [impliedRoot, sideNode];
+    }
+
+    impliedRoot = Poseidon.hash(currentValue);
+  }
+  return impliedRoot;
+}
+
+function impliedRootForHeightInCircuit(
+  sideNodes: Field[],
+  pathBits: Bool[],
+  leaf: Field,
+  height: number
+): Field {
+  let impliedRoot = leaf;
+  for (let i = height - 1; i >= 0; i--) {
     let sideNode = sideNodes[i];
     let [left, right] = Circuit.if(
       pathBits[i],
@@ -472,12 +849,15 @@ function impliedRootForHeight(
   let impliedRoot = leaf;
   for (let i = height - 1; i >= 0; i--) {
     let sideNode = sideNodes[i];
-    let [left, right] = Circuit.if(
-      pathBits[i],
-      [sideNode, impliedRoot],
-      [impliedRoot, sideNode]
-    );
-    impliedRoot = Poseidon.hash([left, right]);
+
+    let currentValue: Field[] = [];
+    if (pathBits[i].toBoolean()) {
+      currentValue = [sideNode, impliedRoot];
+    } else {
+      currentValue = [impliedRoot, sideNode];
+    }
+
+    impliedRoot = Poseidon.hash(currentValue);
   }
   return impliedRoot;
 }
