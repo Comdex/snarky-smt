@@ -52,13 +52,13 @@ class TestZkapp extends SmartContract {
     this.commitment.assertEquals(commitment);
 
     let tree = new DeepSparseMerkleSubTree<Field, Field>(proof1.root, Field);
-    tree.addBranch(proof1, key1, value1);
-    tree.addBranch(proof2, key2, value2);
-    tree.addBranch(proof3, key3, value3);
+    tree.addBranchInCircuit(proof1, key1, value1);
+    tree.addBranchInCircuit(proof2, key2, value2);
+    tree.addBranchInCircuit(proof3, key3, value3);
 
-    let finalRoot = tree.update(key1, Field(88));
-    finalRoot = tree.update(key2, Field(99));
-    finalRoot = tree.update(key3, Field(1010));
+    let finalRoot = tree.updateInCircuit(key1, Field(88));
+    finalRoot = tree.updateInCircuit(key2, Field(99));
+    finalRoot = tree.updateInCircuit(key3, Field(1010));
 
     Circuit.asProver(() => {
       console.log('finalRoot: ', finalRoot.toString());
