@@ -11,6 +11,8 @@ import { Store } from './store/store';
 import { defaultNodes } from './default_nodes';
 import { FieldElements } from './model';
 
+export { NumIndexSparseMerkleTree };
+
 /**
  * Numerically indexed Sparse Merkle Tree.
  *
@@ -18,7 +20,7 @@ import { FieldElements } from './model';
  * @class NumIndexSparseMerkleTree
  * @template V
  */
-export class NumIndexSparseMerkleTree<V extends FieldElements> {
+class NumIndexSparseMerkleTree<V extends FieldElements> {
   protected root: Field;
   protected store: Store<V>;
   protected hasher: Hasher;
@@ -260,7 +262,7 @@ export class NumIndexSparseMerkleTree<V extends FieldElements> {
   public async updateAll(ivs: { index: bigint; value?: V }[]): Promise<Field> {
     this.store.clearPrepareOperationCache();
     let newRoot: Field = this.root;
-    for (let i = 0; i < ivs.length; i++) {
+    for (let i = 0, len = ivs.length; i < len; i++) {
       newRoot = await this.updateForRoot(newRoot, ivs[i].index, ivs[i].value);
     }
     this.store.prepareUpdateRoot(newRoot);
@@ -346,7 +348,7 @@ export class NumIndexSparseMerkleTree<V extends FieldElements> {
       return this.root;
     } else {
       if (oldLeafData.equals(SMT_EMPTY_VALUE).not().toBoolean()) {
-        for (let i = 0; i < pathNodes.length; i++) {
+        for (let i = 0, len = pathNodes.length; i < len; i++) {
           this.store.prepareDelNodes(pathNodes[i]);
         }
       }

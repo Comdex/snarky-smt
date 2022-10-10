@@ -10,6 +10,8 @@ import { Store } from './store/store';
 import { defaultNodes } from './default_nodes';
 import { FieldElements } from './model';
 
+export { SparseMerkleTree };
+
 /**
  * Sparse Merkle Tree
  *
@@ -18,10 +20,7 @@ import { FieldElements } from './model';
  * @template K
  * @template V
  */
-export class SparseMerkleTree<
-  K extends FieldElements,
-  V extends FieldElements
-> {
+class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
   /**
    * Initial empty tree root based on poseidon hash algorithm
    *
@@ -254,7 +253,7 @@ export class SparseMerkleTree<
   public async updateAll(kvs: { key: K; value?: V }[]): Promise<Field> {
     this.store.clearPrepareOperationCache();
     let newRoot: Field = this.root;
-    for (let i = 0; i < kvs.length; i++) {
+    for (let i = 0, len = kvs.length; i < len; i++) {
       newRoot = await this.updateForRoot(newRoot, kvs[i].key, kvs[i].value);
     }
     this.store.prepareUpdateRoot(newRoot);
@@ -331,8 +330,8 @@ export class SparseMerkleTree<
     if (oldLeafData.equals(currentHash).toBoolean()) {
       return this.root;
     } else {
-      if (oldLeafData.equals(SMT_EMPTY_VALUE).not().toBoolean()) {
-        for (let i = 0; i < pathNodes.length; i++) {
+      if (!oldLeafData.equals(SMT_EMPTY_VALUE).toBoolean()) {
+        for (let i = 0, len = pathNodes.length; i < len; i++) {
           this.store.prepareDelNodes(pathNodes[i]);
         }
       }
@@ -368,7 +367,7 @@ export class SparseMerkleTree<
 
     let nodeHash: Field = root;
     let sideNode: Field;
-    for (let i = 0; i < this.depth(); i++) {
+    for (let i = 0, depth = this.depth(); i < depth; i++) {
       const currentValue = await this.store.getNodes(nodeHash);
       if (pathBits[i].toBoolean() === RIGHT) {
         sideNode = currentValue[0];

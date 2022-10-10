@@ -9,6 +9,8 @@ import {
 } from 'abstract-level';
 import { FieldElements } from '../model';
 
+export { LevelStore };
+
 /**
  * Store based on leveldb
  *
@@ -17,7 +19,7 @@ import { FieldElements } from '../model';
  * @implements {Store<V>}
  * @template V
  */
-export class LevelStore<V extends FieldElements> implements Store<V> {
+class LevelStore<V extends FieldElements> implements Store<V> {
   protected db: Level<string, any>;
   protected nodesSubLevel: AbstractSublevel<
     Level<string, any>,

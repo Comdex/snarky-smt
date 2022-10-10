@@ -10,6 +10,13 @@ import { SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
 import { Hasher, SparseMerkleProof } from './proofs';
 import { createEmptyValue } from './utils';
 
+export {
+  verifyProofInCircuit,
+  computeRootInCircuit,
+  verifyProofByFieldInCircuit,
+  computeRootByFieldInCircuit,
+};
+
 /**
  * Verify a merkle proof in circuit.
  *
@@ -24,10 +31,7 @@ import { createEmptyValue } from './utils';
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {Bool}
  */
-export function verifyProofInCircuit<
-  K extends CircuitValue,
-  V extends CircuitValue
->(
+function verifyProofInCircuit<K extends CircuitValue, V extends CircuitValue>(
   proof: SparseMerkleProof,
   root: Field,
   key: K,
@@ -60,10 +64,7 @@ export function verifyProofInCircuit<
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {Field}
  */
-export function computeRootInCircuit<
-  K extends CircuitValue,
-  V extends CircuitValue
->(
+function computeRootInCircuit<K extends CircuitValue, V extends CircuitValue>(
   sideNodes: Field[],
   key: K,
   value: V,
@@ -92,7 +93,7 @@ export function computeRootInCircuit<
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {Bool}
  */
-export function verifyProofByFieldInCircuit(
+function verifyProofByFieldInCircuit(
   proof: SparseMerkleProof,
   root: Field,
   keyHash: Field,
@@ -120,7 +121,7 @@ export function verifyProofByFieldInCircuit(
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {Field}
  */
-export function computeRootByFieldInCircuit(
+function computeRootByFieldInCircuit(
   sideNodes: Field[],
   keyHash: Field,
   valueHash: Field,

@@ -5,6 +5,8 @@ import { FieldElements } from '../model';
 
 import levelup from 'levelup';
 
+export { RocksStore };
+
 /**
  * Store based on rocksdb
  *
@@ -13,7 +15,7 @@ import levelup from 'levelup';
  * @implements {Store<V>}
  * @template V
  */
-export class RocksStore<V extends FieldElements> implements Store<V> {
+class RocksStore<V extends FieldElements> implements Store<V> {
   protected db: levelup.LevelUp;
   protected batch: levelup.LevelUpChain;
   protected nodesKey: string;

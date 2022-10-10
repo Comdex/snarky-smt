@@ -16,7 +16,27 @@ import { countSetBits, createEmptyValue } from './utils';
 
 await isReady;
 
-export type Hasher = (v: Field[]) => Field;
+export {
+  BaseNumIndexSparseMerkleProof,
+  NumIndexSparseMerkleProof,
+  compactNumIndexProof,
+  decompactNumIndexProof,
+  SparseMerkleProof,
+  computeRoot,
+  verifyProof,
+  verifyCompactProof,
+  compactProof,
+  decompactProof,
+  getUpdatesBySideNodes,
+};
+
+export type {
+  Hasher,
+  NumIndexSparseCompactMerkleProof,
+  SparseCompactMerkleProof,
+};
+
+type Hasher = (v: Field[]) => Field;
 
 /**
  *  Merkle proof CircuitValue for an element in a NumIndexSparseMerkleTree.
@@ -25,7 +45,7 @@ export type Hasher = (v: Field[]) => Field;
  * @class BaseNumIndexSparseMerkleProof
  * @extends {CircuitValue}
  */
-export class BaseNumIndexSparseMerkleProof extends CircuitValue {
+class BaseNumIndexSparseMerkleProof extends CircuitValue {
   static height: number;
   root: Field;
   path: Field;
@@ -96,7 +116,7 @@ export class BaseNumIndexSparseMerkleProof extends CircuitValue {
     value?: V,
     hasher: Hasher = Poseidon.hash
   ): boolean {
-    if (this.root.equals(root).not().toBoolean()) {
+    if (!this.root.equals(root).toBoolean()) {
       return false;
     }
     let newRoot = this.computeRoot<V>(value, hasher);
@@ -109,13 +129,30 @@ export class BaseNumIndexSparseMerkleProof extends CircuitValue {
     valueHash: Field,
     hasher: Hasher = Poseidon.hash
   ): boolean {
-    if (this.root.equals(expectedRoot).not().toBoolean()) {
+    if (!this.root.equals(expectedRoot).toBoolean()) {
       return false;
     }
 
     let newRoot = this.computeRootByField(valueHash, hasher);
 
     return newRoot.equals(expectedRoot).toBoolean();
+  }
+
+  verifyByFieldWithUpdates(
+    expectedRoot: Field,
+    valueHash: Field,
+    hasher: Hasher = Poseidon.hash
+  ): { ok: boolean; updates: [Field, Field[]][] } {
+    if (!this.root.equals(expectedRoot).toBoolean()) {
+      return { ok: false, updates: [] };
+    }
+
+    let { actualRoot, updates } = this.computeRootByFieldWithUpdates(
+      valueHash,
+      hasher
+    );
+
+    return { ok: actualRoot.equals(expectedRoot).toBoolean(), updates };
   }
 
   /**
@@ -216,6 +253,30 @@ export class BaseNumIndexSparseMerkleProof extends CircuitValue {
     return currentHash;
   }
 
+  computeRootByFieldWithUpdates(
+    valueHash: Field,
+    hasher: Hasher = Poseidon.hash
+  ): { actualRoot: Field; updates: [Field, Field[]][] } {
+    let h = this.height();
+    let currentHash: Field = valueHash;
+    let updates: [Field, Field[]][] = [];
+    updates.push([currentHash, [currentHash]]);
+
+    const pathBits = this.path.toBits(h);
+    for (let i = h - 1; i >= 0; i--) {
+      let node = this.sideNodes[i];
+      let currentValue: Field[] = [];
+      if (pathBits[i].toBoolean()) {
+        currentValue = [node, currentHash];
+      } else {
+        currentValue = [currentHash, node];
+      }
+      currentHash = hasher(currentValue);
+      updates.push([currentHash, currentValue]);
+    }
+    return { actualRoot: currentHash, updates };
+  }
+
   /**
    * Verify this merkle proof by root and valueHash in circuit.
    *
@@ -244,7 +305,7 @@ export class BaseNumIndexSparseMerkleProof extends CircuitValue {
  * @param {number} height
  * @return {*}  {typeof BaseNumIndexSparseMerkleProof}
  */
-export function NumIndexSparseMerkleProof(
+function NumIndexSparseMerkleProof(
   height: number
 ): typeof BaseNumIndexSparseMerkleProof {
   class NumIndexSparseMerkleProof_ extends BaseNumIndexSparseMerkleProof {
@@ -267,7 +328,7 @@ export function NumIndexSparseMerkleProof(
  * @export
  * @interface NumIndexSparseCompactMerkleProof
  */
-export interface NumIndexSparseCompactMerkleProof {
+interface NumIndexSparseCompactMerkleProof {
   height: number;
   root: Field;
   path: Field;
@@ -283,7 +344,7 @@ export interface NumIndexSparseCompactMerkleProof {
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {NumIndexSparseCompactMerkleProof}
  */
-export function compactNumIndexProof(
+function compactNumIndexProof(
   proof: BaseNumIndexSparseMerkleProof,
   hasher: Hasher = Poseidon.hash
 ): NumIndexSparseCompactMerkleProof {
@@ -320,7 +381,7 @@ export function compactNumIndexProof(
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {BaseNumIndexSparseMerkleProof}
  */
-export function decompactNumIndexProof(
+function decompactNumIndexProof(
   proof: NumIndexSparseCompactMerkleProof,
   hasher: Hasher = Poseidon.hash
 ): BaseNumIndexSparseMerkleProof {
@@ -358,7 +419,7 @@ export function decompactNumIndexProof(
  * @class SparseMerkleProof
  * @extends {CircuitValue}
  */
-export class SparseMerkleProof extends CircuitValue {
+class SparseMerkleProof extends CircuitValue {
   @arrayProp(Field, SMT_DEPTH) sideNodes: Field[];
   @prop root: Field;
 
@@ -375,7 +436,7 @@ export class SparseMerkleProof extends CircuitValue {
  * @export
  * @interface SparseCompactMerkleProof
  */
-export interface SparseCompactMerkleProof {
+interface SparseCompactMerkleProof {
   sideNodes: Field[];
   bitMask: Field;
   root: Field;
@@ -393,7 +454,7 @@ export interface SparseCompactMerkleProof {
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {Field}
  */
-export function computeRoot<K extends FieldElements, V extends FieldElements>(
+function computeRoot<K extends FieldElements, V extends FieldElements>(
   sideNodes: Field[],
   key: K,
   value?: V,
@@ -437,14 +498,14 @@ export function computeRoot<K extends FieldElements, V extends FieldElements>(
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {boolean}
  */
-export function verifyProof<K extends FieldElements, V extends FieldElements>(
+function verifyProof<K extends FieldElements, V extends FieldElements>(
   proof: SparseMerkleProof,
   root: Field,
   key: K,
   value?: V,
   hasher: Hasher = Poseidon.hash
 ): boolean {
-  if (proof.root.equals(root).not().toBoolean()) {
+  if (!proof.root.equals(root).toBoolean()) {
     return false;
   }
   let newRoot = computeRoot<K, V>(proof.sideNodes, key, value, hasher);
@@ -465,10 +526,7 @@ export function verifyProof<K extends FieldElements, V extends FieldElements>(
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {boolean}
  */
-export function verifyCompactProof<
-  K extends FieldElements,
-  V extends FieldElements
->(
+function verifyCompactProof<K extends FieldElements, V extends FieldElements>(
   cproof: SparseCompactMerkleProof,
   root: Field,
   key: K,
@@ -487,7 +545,7 @@ export function verifyCompactProof<
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {SparseCompactMerkleProof}
  */
-export function compactProof(
+function compactProof(
   proof: SparseMerkleProof,
   hasher: Hasher = Poseidon.hash
 ): SparseCompactMerkleProof {
@@ -521,7 +579,7 @@ export function compactProof(
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {SparseMerkleProof}
  */
-export function decompactProof(
+function decompactProof(
   proof: SparseCompactMerkleProof,
   hasher: Hasher = Poseidon.hash
 ): SparseMerkleProof {
@@ -543,4 +601,33 @@ export function decompactProof(
   }
 
   return new SparseMerkleProof(decompactedSideNodes, proof.root);
+}
+
+function getUpdatesBySideNodes(
+  sideNodes: Field[],
+  keyHash: Field,
+  valueHash: Field,
+  height: number = SMT_DEPTH,
+  hasher: Hasher = Poseidon.hash
+): [Field, Field[]][] {
+  let currentHash: Field = valueHash;
+  let updates: [Field, Field[]][] = [];
+
+  const pathBits = keyHash.toBits(height);
+  updates.push([currentHash, [currentHash]]);
+
+  for (let i = height - 1; i >= 0; i--) {
+    let node = sideNodes[i];
+    let currentValue: Field[] = [];
+
+    if (pathBits[i].toBoolean()) {
+      currentValue = [node, currentHash];
+    } else {
+      currentValue = [currentHash, node];
+    }
+    currentHash = hasher(currentValue);
+    updates.push([currentHash, currentValue]);
+  }
+
+  return updates;
 }
