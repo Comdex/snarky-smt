@@ -10,6 +10,8 @@ import { Store } from './store/store';
 import { defaultNodes } from './default_nodes';
 import { FieldElements } from './model';
 
+export { MultiVersionSparseMerkleTree };
+
 /**
  * A sparse merkle tree that stores all version changes. Due to uncontrolled storage growth, only for testing purposes.
  *
@@ -18,7 +20,7 @@ import { FieldElements } from './model';
  * @template K
  * @template V
  */
-export class MultiVersionSparseMerkleTree<
+class MultiVersionSparseMerkleTree<
   K extends FieldElements,
   V extends FieldElements
 > {

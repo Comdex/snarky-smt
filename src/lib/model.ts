@@ -1,17 +1,23 @@
 import { Field } from 'snarkyjs';
 
+export type {
+  FieldElements,
+  SparseCompactMerkleProofJSON,
+  NumIndexSparseCompactMerkleProofJSON,
+};
+
 /**
  * The interface is designed to be compatible with both CircuitValue and Field type.
  *
  * @export
  * @interface FieldElements
  */
-export interface FieldElements {
+interface FieldElements {
   toFields(): Field[];
 }
 
 // A type used to support serialization to json for SparseCompactMerkleProof.
-export interface SparseCompactMerkleProofJSON {
+interface SparseCompactMerkleProofJSON {
   sideNodes: string[];
   bitMask: string;
   root: string;
@@ -23,7 +29,7 @@ export interface SparseCompactMerkleProofJSON {
  * @export
  * @interface NumIndexSparseCompactMerkleProofJSON
  */
-export interface NumIndexSparseCompactMerkleProofJSON {
+interface NumIndexSparseCompactMerkleProofJSON {
   height: number;
   root: string;
   path: string;

@@ -1,5 +1,8 @@
 import { Field } from 'snarkyjs';
 import { FieldElements } from '../model';
+
+export type { Store };
+
 /**
  * Store is a key-value store interface
  *
@@ -7,7 +10,7 @@ import { FieldElements } from '../model';
  * @interface Store
  * @template V
  */
-export interface Store<V extends FieldElements> {
+interface Store<V extends FieldElements> {
   /**
    * Get nodes for a key. Error is thrown when a key that does not exist is being accessed.
    *

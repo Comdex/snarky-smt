@@ -4,6 +4,8 @@ import { Store } from './store';
 import mongoose, { Schema, model, Model } from 'mongoose';
 import { strToFieldArry } from '../utils';
 
+export { MongoStore };
+
 interface IKV {
   _id: string;
   value: string;
@@ -22,7 +24,7 @@ const kvSchema = new Schema<IKV>({
  * @implements {Store<V>}
  * @template V
  */
-export class MongoStore<V extends FieldElements> implements Store<V> {
+class MongoStore<V extends FieldElements> implements Store<V> {
   protected db: mongoose.Connection;
   protected nodesModel: Model<IKV, {}, {}, {}, any>;
   protected valuesModel: Model<IKV, {}, {}, {}, any>;

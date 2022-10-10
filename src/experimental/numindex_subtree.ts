@@ -14,10 +14,7 @@ import {
   method,
   Poseidon,
 } from 'snarkyjs';
-import {
-  NumIndexDeepSparseMerkleSubTree,
-  NumIndexDeepSparseMerkleSubTreeForField,
-} from '../lib/deep_subtree';
+import { ProvableNumIndexDeepSparseMerkleSubTree } from '../lib/deep_subtree_circuit';
 import { NumIndexSparseMerkleTree } from '../lib/numindex_smt';
 import { NumIndexSparseMerkleProof } from '../lib/proofs';
 import { MemoryStore } from '../lib/store/memory_store';
@@ -56,7 +53,7 @@ class TestZkapp extends SmartContract {
     let commitment = this.commitment.get();
     this.commitment.assertEquals(commitment);
 
-    let tree = new NumIndexDeepSparseMerkleSubTreeForField(
+    let tree = new ProvableNumIndexDeepSparseMerkleSubTree(
       proof1.root,
       treeHeight
     );
@@ -69,20 +66,17 @@ class TestZkapp extends SmartContract {
     // tree.addBranch(proof2, value2);
     // tree.addBranch(proof3, value3);
 
-    tree.addBranchInCircuit(proof1, Poseidon.hash([value1]));
-    tree.addBranchInCircuit(proof2, Poseidon.hash([value2]));
-    tree.addBranchInCircuit(proof3, Poseidon.hash([value3]));
+    tree.addBranch(proof1, Poseidon.hash([value1]));
+    tree.addBranch(proof2, Poseidon.hash([value2]));
+    tree.addBranch(proof3, Poseidon.hash([value3]));
 
     // let finalRoot = tree.update(proof1.path, Field(88));
     // finalRoot = tree.update(proof2.path, Field(99));
     // finalRoot = tree.update(proof3.path, Field(1010));
 
-    let finalRoot = tree.updateInCircuit(
-      proof1.path,
-      Poseidon.hash([Field(88)])
-    );
-    finalRoot = tree.updateInCircuit(proof2.path, Poseidon.hash([Field(99)]));
-    finalRoot = tree.updateInCircuit(proof3.path, Poseidon.hash([Field(1010)]));
+    let finalRoot = tree.update(proof1.path, Poseidon.hash([Field(88)]));
+    finalRoot = tree.update(proof2.path, Poseidon.hash([Field(99)]));
+    finalRoot = tree.update(proof3.path, Poseidon.hash([Field(1010)]));
 
     Circuit.asProver(() => {
       console.log('finalRoot by field: ', finalRoot.toString());

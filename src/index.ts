@@ -4,8 +4,11 @@ export { NumIndexSparseMerkleTree } from './lib/numindex_smt';
 export {
   DeepSparseMerkleSubTree,
   NumIndexDeepSparseMerkleSubTree,
-  NumIndexDeepSparseMerkleSubTreeForField,
 } from './lib/deep_subtree';
+export {
+  ProvableDeepSparseMerkleSubTree,
+  ProvableNumIndexDeepSparseMerkleSubTree,
+} from './lib/deep_subtree_circuit';
 export type {
   FieldElements,
   SparseCompactMerkleProofJSON,

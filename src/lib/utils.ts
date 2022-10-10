@@ -8,6 +8,20 @@ import {
   SparseCompactMerkleProof,
 } from './proofs';
 
+export {
+  createEmptyValue,
+  compactMerkleProofToJson,
+  compactNumIndexMerkleProofToJson,
+  jsonToCompactMerkleProof,
+  jsonToNumIndexCompactMerkleProof,
+  fieldToHexString,
+  hexStringToField,
+  strToFieldArry,
+  countCommonPrefix,
+  countSetBits,
+  printBits,
+};
+
 /**
  * Create a empty value for a CircuitValue Type
  *
@@ -16,7 +30,7 @@ import {
  * @param {AsFieldElements<T>} valueType
  * @return {*}  {T}
  */
-export function createEmptyValue<T extends CircuitValue>(
+function createEmptyValue<T extends CircuitValue>(
   valueType: AsFieldElements<T>
 ): T {
   const dummy = (() => {
@@ -38,7 +52,7 @@ export function createEmptyValue<T extends CircuitValue>(
  * @param {SparseCompactMerkleProof} proof
  * @return {*}  {SparseCompactMerkleProofJSONValue}
  */
-export function compactMerkleProofToJson(
+function compactMerkleProofToJson(
   proof: SparseCompactMerkleProof
 ): SparseCompactMerkleProofJSON {
   let sideNodesStrArr: string[] = [];
@@ -61,7 +75,7 @@ export function compactMerkleProofToJson(
  * @param {NumIndexSparseCompactMerkleProof} proof
  * @return {*}  {NumIndexSparseCompactMerkleProofJSON}
  */
-export function compactNumIndexMerkleProofToJson(
+function compactNumIndexMerkleProofToJson(
   proof: NumIndexSparseCompactMerkleProof
 ): NumIndexSparseCompactMerkleProofJSON {
   let sideNodesStrArr: string[] = [];
@@ -86,7 +100,7 @@ export function compactNumIndexMerkleProofToJson(
  * @param {SparseCompactMerkleProofJSONValue} jsonValue
  * @return {*}  {SparseCompactMerkleProof}
  */
-export function jsonToCompactMerkleProof(
+function jsonToCompactMerkleProof(
   jsonValue: SparseCompactMerkleProofJSON
 ): SparseCompactMerkleProof {
   let sideNodes: Field[] = [];
@@ -109,7 +123,7 @@ export function jsonToCompactMerkleProof(
  * @param {NumIndexSparseCompactMerkleProofJSON} jsonValue
  * @return {*}  {NumIndexSparseCompactMerkleProof}
  */
-export function jsonToNumIndexCompactMerkleProof(
+function jsonToNumIndexCompactMerkleProof(
   jsonValue: NumIndexSparseCompactMerkleProofJSON
 ): NumIndexSparseCompactMerkleProof {
   let sideNodes: Field[] = [];
@@ -134,7 +148,7 @@ export function jsonToNumIndexCompactMerkleProof(
  * @param {Field} f
  * @return {*}  {string}
  */
-export function fieldToHexString(f: Field): string {
+function fieldToHexString(f: Field): string {
   return '0x' + f.toBigInt().toString(16);
 }
 
@@ -145,7 +159,7 @@ export function fieldToHexString(f: Field): string {
  * @param {string} hexStr
  * @return {*}  {Field}
  */
-export function hexStringToField(hexStr: string): Field {
+function hexStringToField(hexStr: string): Field {
   return Field(BigInt(hexStr));
 }
 
@@ -156,21 +170,19 @@ export function hexStringToField(hexStr: string): Field {
  * @param {string} str
  * @return {*}  {Field[]}
  */
-export function strToFieldArry(str: string): Field[] {
+function strToFieldArry(str: string): Field[] {
   const sarr = str.split(',');
   let fs: Field[] = [];
 
-  sarr.forEach((v) => {
+  for (let i = 0, len = sarr.length; i < len; i++) {
+    let v = sarr[i];
     fs.push(new Field(v));
-  });
+  }
 
   return fs;
 }
 
-export function countCommonPrefix(
-  data1bits: Bool[],
-  data2bits: Bool[]
-): number {
+function countCommonPrefix(data1bits: Bool[], data2bits: Bool[]): number {
   let count = 0;
   const len = data1bits.length;
 
@@ -185,9 +197,9 @@ export function countCommonPrefix(
   return count;
 }
 
-export function countSetBits(data: Bool[]): number {
+function countSetBits(data: Bool[]): number {
   let count = 0;
-  for (let i = 0; i < data.length; i++) {
+  for (let i = 0, len = data.length; i < len; i++) {
     if (data[i].toBoolean()) {
       count++;
     }
@@ -201,7 +213,7 @@ export function countSetBits(data: Bool[]): number {
  * @export
  * @param {Bool[]} data
  */
-export function printBits(data: Bool[], varName?: string) {
+function printBits(data: Bool[], varName?: string) {
   let str = '';
   let i = 0;
   data.forEach((v) => {

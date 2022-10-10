@@ -2,15 +2,14 @@ import { Field } from 'snarkyjs';
 import { SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
 import { Hasher } from './proofs';
 
+export { defaultNodes };
+
 let defaultNodesMap: Map<Hasher, Map<number, Field[]>> = new Map<
   Hasher,
   Map<number, Field[]>
 >();
 
-export function defaultNodes(
-  hasher: Hasher,
-  treeHeight: number = SMT_DEPTH
-): Field[] {
+function defaultNodes(hasher: Hasher, treeHeight: number = SMT_DEPTH): Field[] {
   let innerMap: Map<number, Field[]> = defaultNodesMap.get(hasher)!;
 
   if (innerMap === undefined) {

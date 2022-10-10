@@ -2,6 +2,8 @@ import { Field } from 'snarkyjs';
 import { FieldElements } from '../model';
 import { Store } from './store';
 
+export { MemoryStore };
+
 const enum SetType {
   nodes = 0,
   values = 1,
@@ -20,7 +22,7 @@ const enum OperationType {
  * @implements {Store<V>}
  * @template V
  */
-export class MemoryStore<V extends FieldElements> implements Store<V> {
+class MemoryStore<V extends FieldElements> implements Store<V> {
   protected nodesMap: Map<string, Field[]>;
   protected valuesMap: Map<string, V>;
 
@@ -184,7 +186,7 @@ export class MemoryStore<V extends FieldElements> implements Store<V> {
    * @memberof MemoryStore
    */
   public async commit(): Promise<void> {
-    for (let i = 0; i < this.operationCache.length; i++) {
+    for (let i = 0, len = this.operationCache.length; i < len; i++) {
       const v = this.operationCache[i];
       if (v.opType === OperationType.put) {
         if (v.setType === SetType.nodes) {
