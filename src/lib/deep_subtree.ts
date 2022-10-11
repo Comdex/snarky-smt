@@ -30,6 +30,15 @@ class DeepSparseMerkleSubTree {
     return SMT_DEPTH;
   }
 
+  public has(keyHash: Field, valueHash: Field): boolean {
+    let v = this.valueStore.get(keyHash.toString());
+    if (v === undefined || !v.equals(valueHash).toBoolean()) {
+      return false;
+    }
+
+    return true;
+  }
+
   public addBranch(proof: SparseMerkleProof, keyHash: Field, valueHash: Field) {
     let { ok, updates } = verifyProofWithUpdates(
       proof,
@@ -155,8 +164,17 @@ class NumIndexDeepSparseMerkleSubTree {
     return this.height;
   }
 
+  public has(path: Field, valueHash: Field): boolean {
+    let v = this.valueStore.get(path.toString());
+    if (v === undefined || !v.equals(valueHash).toBoolean()) {
+      return false;
+    }
+
+    return true;
+  }
+
   public addBranch(proof: BaseNumIndexSparseMerkleProof, valueHash: Field) {
-    const keyHash = proof.path;
+    const path = proof.path;
 
     let { ok, updates } = proof.verifyByFieldWithUpdates(
       this.root,
@@ -173,7 +191,7 @@ class NumIndexDeepSparseMerkleSubTree {
       this.nodeStore.set(v[0].toString(), v[1]);
     }
 
-    this.valueStore.set(keyHash.toString(), valueHash);
+    this.valueStore.set(path.toString(), valueHash);
   }
 
   public prove(path: Field): BaseNumIndexSparseMerkleProof {
