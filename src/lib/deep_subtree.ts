@@ -39,7 +39,12 @@ class DeepSparseMerkleSubTree {
     return true;
   }
 
-  public addBranch(proof: SparseMerkleProof, keyHash: Field, valueHash: Field) {
+  public addBranch(
+    proof: SparseMerkleProof,
+    keyHash: Field,
+    valueHash: Field,
+    ignoreInvalidProof: boolean = false
+  ) {
     let { ok, updates } = verifyProofWithUpdates(
       proof,
       this.root,
@@ -47,8 +52,15 @@ class DeepSparseMerkleSubTree {
       valueHash,
       this.hasher
     );
+
     if (!ok) {
-      throw new Error('invalid proof');
+      if (!ignoreInvalidProof) {
+        throw new Error(
+          `invalid proof, keyHash: ${keyHash.toString()}, valueHash: ${valueHash.toString()}`
+        );
+      } else {
+        return;
+      }
     }
 
     for (let i = 0, len = updates.length; i < len; i++) {
@@ -173,7 +185,11 @@ class NumIndexDeepSparseMerkleSubTree {
     return true;
   }
 
-  public addBranch(proof: BaseNumIndexSparseMerkleProof, valueHash: Field) {
+  public addBranch(
+    proof: BaseNumIndexSparseMerkleProof,
+    valueHash: Field,
+    ignoreInvalidProof: boolean = false
+  ) {
     const path = proof.path;
 
     let { ok, updates } = proof.verifyByFieldWithUpdates(
@@ -183,7 +199,13 @@ class NumIndexDeepSparseMerkleSubTree {
     );
 
     if (!ok) {
-      throw new Error('invalid proof');
+      if (!ignoreInvalidProof) {
+        throw new Error(
+          `invalid proof, proof path: ${path.toString()}, valueHash: ${valueHash.toString()}`
+        );
+      } else {
+        return;
+      }
     }
 
     for (let i = 0, len = updates.length; i < len; i++) {
