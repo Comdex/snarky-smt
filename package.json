@@ -39,6 +39,7 @@
     "doc:publish": "gh-pages -m \"[ci skip] Updates\" -d build/docs",
     "test2": "jest --config jest.config.js --maxWorkers=50%",
     "test": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js",
+    "test:ci": "test": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js --maxWorkers=1",
     "test:compact": "jest --config jest.config.js compact_smt",
     "prepublishOnly": "rm -rf ./build && npm run build:module && npm run doc:html && npm run doc:publish"
   },
