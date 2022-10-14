@@ -21,6 +21,6 @@ jobs:
         run: |
           npm install
           npm run build:module --if-present
-          npm run test:ci
+          npm run test2
         env:
           CI: true
