@@ -112,16 +112,16 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
    * @memberof BaseNumIndexSparseMerkleProof
    */
   verify<V extends FieldElements>(
-    root: Field,
+    expectedRoot: Field,
     value?: V,
     hasher: Hasher = Poseidon.hash
   ): boolean {
-    if (!this.root.equals(root).toBoolean()) {
+    if (!this.root.equals(expectedRoot).toBoolean()) {
       return false;
     }
-    let newRoot = this.computeRoot<V>(value, hasher);
+    let currentRoot = this.computeRoot<V>(value, hasher);
 
-    return newRoot.equals(root).toBoolean();
+    return currentRoot.equals(expectedRoot).toBoolean();
   }
 
   verifyByField(
@@ -133,9 +133,9 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
       return false;
     }
 
-    let newRoot = this.computeRootByField(valueHash, hasher);
+    let currentRoot = this.computeRootByField(valueHash, hasher);
 
-    return newRoot.equals(expectedRoot).toBoolean();
+    return currentRoot.equals(expectedRoot).toBoolean();
   }
 
   verifyByFieldWithUpdates(
@@ -192,15 +192,14 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
    * @memberof BaseNumIndexSparseMerkleProof
    */
   verifyInCircuit<V extends CircuitValue>(
-    root: Field,
+    expectedRoot: Field,
     value: V,
     valueType: AsFieldElements<V>,
     hasher: Hasher = Poseidon.hash
   ): Bool {
-    const rootEqual = this.root.equals(root);
-    const currentHash = this.computeRootInCircuit(value, valueType, hasher);
+    const currentRoot = this.computeRootInCircuit(value, valueType, hasher);
 
-    return rootEqual.and(currentHash.equals(root));
+    return expectedRoot.equals(currentRoot);
   }
 
   /**
@@ -287,14 +286,13 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
    * @memberof BaseNumIndexSparseMerkleProof
    */
   verifyByFieldInCircuit(
-    root: Field,
+    expectedRoot: Field,
     valueHash: Field,
     hasher: Hasher = Poseidon.hash
   ): Bool {
-    const rootEqual = this.root.equals(root);
-    const newRoot = this.computeRootByFieldInCircuit(valueHash, hasher);
+    const currentRoot = this.computeRootByFieldInCircuit(valueHash, hasher);
 
-    return rootEqual.and(newRoot.equals(root));
+    return expectedRoot.equals(currentRoot);
   }
 }
 
@@ -500,17 +498,17 @@ function computeRoot<K extends FieldElements, V extends FieldElements>(
  */
 function verifyProof<K extends FieldElements, V extends FieldElements>(
   proof: SparseMerkleProof,
-  root: Field,
+  expectedRoot: Field,
   key: K,
   value?: V,
   hasher: Hasher = Poseidon.hash
 ): boolean {
-  if (!proof.root.equals(root).toBoolean()) {
+  if (!proof.root.equals(expectedRoot).toBoolean()) {
     return false;
   }
   let newRoot = computeRoot<K, V>(proof.sideNodes, key, value, hasher);
 
-  return newRoot.equals(root).toBoolean();
+  return newRoot.equals(expectedRoot).toBoolean();
 }
 
 /**
@@ -528,13 +526,13 @@ function verifyProof<K extends FieldElements, V extends FieldElements>(
  */
 function verifyCompactProof<K extends FieldElements, V extends FieldElements>(
   cproof: SparseCompactMerkleProof,
-  root: Field,
+  expectedRoot: Field,
   key: K,
   value?: V,
   hasher: Hasher = Poseidon.hash
 ): boolean {
   const proof = decompactProof(cproof, hasher);
-  return verifyProof(proof, root, key, value, hasher);
+  return verifyProof(proof, expectedRoot, key, value, hasher);
 }
 
 /**
