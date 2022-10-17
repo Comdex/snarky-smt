@@ -19,7 +19,7 @@ import { TreeHasher } from './tree_hasher';
  * @template K
  * @template V
  * @param {CSparseMerkleProof} proof
- * @param {Field} root
+ * @param {Field} expectedRoot
  * @param {K} key
  * @param {V} value
  * @param {AsFieldElements<V>} valueType

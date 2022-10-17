@@ -105,7 +105,7 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
    * Verify this merkle proof. Note: This method cannot be executed in a circuit.
    *
    * @template V
-   * @param {Field} root
+   * @param {Field} expectedRoot
    * @param {V} [value]
    * @param {Hasher} [hasher=Poseidon.hash]
    * @return {*}  {boolean}
@@ -184,7 +184,7 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
    * Verify this merkle proof in circuit.
    *
    * @template V
-   * @param {Field} root
+   * @param {Field} expectedRoot
    * @param {V} value
    * @param {AsFieldElements<V>} valueType
    * @param {Hasher} [hasher=Poseidon.hash]
@@ -279,7 +279,7 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
   /**
    * Verify this merkle proof by root and valueHash in circuit.
    *
-   * @param {Field} root
+   * @param {Field} expectedRoot
    * @param {Field} valueHash
    * @param {Hasher} [hasher=Poseidon.hash]
    * @return {*}  {Bool}
@@ -490,7 +490,7 @@ function computeRoot<K extends FieldElements, V extends FieldElements>(
  * @template K
  * @template V
  * @param {SparseMerkleProof} proof
- * @param {Field} root
+ * @param {Field} expectedRoot
  * @param {K} key
  * @param {V} [value]
  * @param {Hasher} [hasher=Poseidon.hash]
@@ -518,7 +518,7 @@ function verifyProof<K extends FieldElements, V extends FieldElements>(
  * @template K
  * @template V
  * @param {SparseCompactMerkleProof} cproof
- * @param {Field} root
+ * @param {Field} expectedRoot
  * @param {K} key
  * @param {V} [value]
  * @param {Hasher} [hasher=Poseidon.hash]

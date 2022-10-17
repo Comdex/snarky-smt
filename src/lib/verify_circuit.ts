@@ -24,7 +24,7 @@ export {
  * @template K
  * @template V
  * @param {SparseMerkleProof} proof
- * @param {Field} root
+ * @param {Field} expectedRoot
  * @param {K} key
  * @param {V} value
  * @param {AsFieldElements<V>} valueType
@@ -86,7 +86,7 @@ function computeRootInCircuit<K extends CircuitValue, V extends CircuitValue>(
  *
  * @export
  * @param {SparseMerkleProof} proof
- * @param {Field} root
+ * @param {Field} expectedRoot
  * @param {Field} keyHash
  * @param {Field} valueHash
  * @param {Hasher} [hasher=Poseidon.hash]
