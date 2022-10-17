@@ -33,14 +33,13 @@ export {
  */
 function verifyProofInCircuit<K extends CircuitValue, V extends CircuitValue>(
   proof: SparseMerkleProof,
-  root: Field,
+  expectedRoot: Field,
   key: K,
   value: V,
   valueType: AsFieldElements<V>,
   hasher: Hasher = Poseidon.hash
 ): Bool {
-  const rootEqual = proof.root.equals(root);
-  const currentHash = computeRootInCircuit(
+  const currentRoot = computeRootInCircuit(
     proof.sideNodes,
     key,
     value,
@@ -48,7 +47,7 @@ function verifyProofInCircuit<K extends CircuitValue, V extends CircuitValue>(
     hasher
   );
 
-  return rootEqual.and(currentHash.equals(root));
+  return expectedRoot.equals(currentRoot);
 }
 
 /**
@@ -95,20 +94,19 @@ function computeRootInCircuit<K extends CircuitValue, V extends CircuitValue>(
  */
 function verifyProofByFieldInCircuit(
   proof: SparseMerkleProof,
-  root: Field,
+  expectedRoot: Field,
   keyHash: Field,
   valueHash: Field,
   hasher: Hasher = Poseidon.hash
 ): Bool {
-  const rootEqual = proof.root.equals(root);
-  const newRoot = computeRootByFieldInCircuit(
+  const currentRoot = computeRootByFieldInCircuit(
     proof.sideNodes,
     keyHash,
     valueHash,
     hasher
   );
 
-  return rootEqual.and(newRoot.equals(root));
+  return expectedRoot.equals(currentRoot);
 }
 
 /**

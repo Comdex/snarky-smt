@@ -31,15 +31,13 @@ export function c_verifyProofInCircuit<
   V extends CircuitValue
 >(
   proof: CSparseMerkleProof,
-  root: Field,
+  expectedRoot: Field,
   key: K,
   value: V,
   valueType: AsFieldElements<V>,
   hasher: Hasher = Poseidon.hash
 ): Bool {
   Field(proof.sideNodes.length).assertEquals(SMT_DEPTH);
-  const rootEqual = proof.root.equals(root);
-
   Field(proof.nonMembershipLeafData.length).assertEquals(3);
 
   const th = new TreeHasher(hasher);
@@ -66,7 +64,7 @@ export function c_verifyProofInCircuit<
     )
   );
 
-  const pathBits = path.toBits();
+  const pathBits = path.toBits(SMT_DEPTH);
   //Recompute root
   let sideNodesLength = proof.sideNodes.length;
 
@@ -90,5 +88,5 @@ export function c_verifyProofInCircuit<
     );
   }
 
-  return rootEqual.and(currentHash.equals(root));
+  return expectedRoot.equals(currentHash);
 }

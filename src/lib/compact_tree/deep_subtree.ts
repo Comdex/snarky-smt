@@ -23,13 +23,12 @@ export class CDeepSparseMerkleSubTree<
   }
 
   async addBranch(proof: CSparseMerkleProof, key: K, value: V) {
-    const th = this.getTreeHasher();
     const { ok, updates } = c_verifyProofWithUpdates(
       proof,
       this.getRoot(),
       key,
       value,
-      th.getHasher()
+      this.th.getHasher()
     );
     if (!ok) {
       throw new Error('Bad proof');
@@ -37,19 +36,19 @@ export class CDeepSparseMerkleSubTree<
 
     if (value !== undefined) {
       //membership proof
-      this.getStore().preparePutValue(th.path(key), value);
+      this.store.preparePutValue(this.th.path(key), value);
     }
 
     updates?.forEach((v: [Field, Field[]]) => {
-      this.getStore().preparePutNodes(v[0], v[1]);
+      this.store.preparePutNodes(v[0], v[1]);
     });
 
-    if (!th.isEmptyData(proof.siblingData)) {
+    if (!this.th.isEmptyData(proof.siblingData)) {
       if (proof.sideNodes.length > 0) {
-        this.getStore().preparePutNodes(proof.sideNodes[0], proof.siblingData);
+        this.store.preparePutNodes(proof.sideNodes[0], proof.siblingData);
       }
     }
 
-    await this.getStore().commit();
+    await this.store.commit();
   }
 }

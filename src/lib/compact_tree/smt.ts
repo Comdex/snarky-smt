@@ -23,9 +23,9 @@ export class CSparseMerkleTree<
   K extends FieldElements,
   V extends FieldElements
 > {
-  private th: TreeHasher<K, V>;
-  private store: Store<V>;
-  private root: Field;
+  protected th: TreeHasher<K, V>;
+  protected store: Store<V>;
+  protected root: Field;
 
   /**
    * Creates an instance of CSparseMerkleTree.

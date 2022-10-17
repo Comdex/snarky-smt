@@ -33,7 +33,12 @@ export class CSparseMerkleProof extends CircuitValue {
     siblingData: Field[],
     root: Field
   ) {
-    super(sideNodes, nonMembershipLeafData, siblingData, root);
+    super();
+    if (sideNodes.length > SMT_DEPTH) {
+      throw new Error(
+        `The number of side nodes cannot be greater than ${SMT_DEPTH}`
+      );
+    }
 
     // padd with CP_PADD_VALUE to a fixed length
     for (let i = sideNodes.length; i < SMT_DEPTH; i++) {
