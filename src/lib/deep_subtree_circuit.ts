@@ -50,12 +50,16 @@ class ProvableDeepSparseMerkleSubTree {
     return SMT_DEPTH;
   }
 
-  public addBranch(proof: SparseMerkleProof, keyHash: Field, valueHash: Field) {
+  public addBranch(
+    proof: SparseMerkleProof,
+    keyHashOrKeyField: Field,
+    valueHashOrValueField: Field
+  ) {
     Circuit.asProver(() => {
       let updates = getUpdatesBySideNodes(
         proof.sideNodes,
-        keyHash,
-        valueHash,
+        keyHashOrKeyField,
+        valueHashOrValueField,
         SMT_DEPTH,
         this.hasher
       );
@@ -65,20 +69,20 @@ class ProvableDeepSparseMerkleSubTree {
         this.nodeStore.set(v[0].toString(), v[1]);
       }
 
-      this.valueStore.set(keyHash.toString(), valueHash);
+      this.valueStore.set(keyHashOrKeyField.toString(), valueHashOrValueField);
     });
   }
 
-  public prove(keyHash: Field): SparseMerkleProof {
+  public prove(keyHashOrKeyField: Field): SparseMerkleProof {
     return Circuit.witness(BaseNumIndexSparseMerkleProof, () => {
-      let pathStr = keyHash.toString();
+      let pathStr = keyHashOrKeyField.toString();
       let valueHash = this.valueStore.get(pathStr);
       if (valueHash === undefined) {
         throw new Error(
           `The DeepSubTree does not contain a branch of the path: ${pathStr}`
         );
       }
-      const pathBits = keyHash.toBits(this.getHeight());
+      const pathBits = keyHashOrKeyField.toBits(this.getHeight());
       let sideNodes: Field[] = [];
       let nodeHash: Field = this.root;
       for (let i = 0, h = this.getHeight(); i < h; i++) {
@@ -102,8 +106,8 @@ class ProvableDeepSparseMerkleSubTree {
     });
   }
 
-  public update(keyHash: Field, valueHash: Field): Field {
-    const path = keyHash;
+  public update(keyHashOrKeyField: Field, valueHashOrValueField: Field): Field {
+    const path = keyHashOrKeyField;
     const treeHeight = this.getHeight();
     const pathBits = path.toBits(treeHeight);
 
@@ -145,7 +149,7 @@ class ProvableDeepSparseMerkleSubTree {
       this.root
     );
 
-    let currentHash = valueHash;
+    let currentHash = valueHashOrValueField;
 
     Circuit.asProver(() => {
       this.nodeStore.set(currentHash.toString(), [currentHash]);
@@ -168,7 +172,7 @@ class ProvableDeepSparseMerkleSubTree {
     }
 
     Circuit.asProver(() => {
-      this.valueStore.set(path.toString(), valueHash);
+      this.valueStore.set(path.toString(), valueHashOrValueField);
     });
     this.root = currentHash;
 
@@ -199,14 +203,17 @@ class ProvableNumIndexDeepSparseMerkleSubTree {
     return this.height;
   }
 
-  public addBranch(proof: BaseNumIndexSparseMerkleProof, valueHash: Field) {
+  public addBranch(
+    proof: BaseNumIndexSparseMerkleProof,
+    valueHashOrValueField: Field
+  ) {
     Circuit.asProver(() => {
       const keyHash = proof.path;
 
       let updates = getUpdatesBySideNodes(
         proof.sideNodes,
         keyHash,
-        valueHash,
+        valueHashOrValueField,
         this.height,
         this.hasher
       );
@@ -216,7 +223,7 @@ class ProvableNumIndexDeepSparseMerkleSubTree {
         this.nodeStore.set(v[0].toString(), v[1]);
       }
 
-      this.valueStore.set(keyHash.toString(), valueHash);
+      this.valueStore.set(keyHash.toString(), valueHashOrValueField);
     });
   }
 
@@ -261,7 +268,7 @@ class ProvableNumIndexDeepSparseMerkleSubTree {
     });
   }
 
-  public update(path: Field, valueHash: Field): Field {
+  public update(path: Field, valueHashOrValueField: Field): Field {
     const pathBits = path.toBits(this.height);
     class SideNodes extends CircuitValue {
       @arrayProp(Field, this.height) arr: Field[];
@@ -309,7 +316,7 @@ class ProvableNumIndexDeepSparseMerkleSubTree {
       this.height
     ).assertEquals(this.root);
 
-    let currentHash = valueHash;
+    let currentHash = valueHashOrValueField;
 
     Circuit.asProver(() => {
       this.nodeStore.set(currentHash.toString(), [currentHash]);
@@ -332,7 +339,7 @@ class ProvableNumIndexDeepSparseMerkleSubTree {
     }
 
     Circuit.asProver(() => {
-      this.valueStore.set(path.toString(), valueHash);
+      this.valueStore.set(path.toString(), valueHashOrValueField);
     });
 
     this.root = currentHash;

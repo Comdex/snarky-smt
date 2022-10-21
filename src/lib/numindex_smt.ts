@@ -26,6 +26,7 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
   protected hasher: Hasher;
   protected readonly height: number;
   protected readonly maxNumIndex: bigint;
+  protected readonly hashValue: boolean;
 
   /**
    * Build a new numerically indexed sparse merkle tree.
@@ -33,17 +34,33 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
    * @static
    * @template V
    * @param {Store<V>} store
-   * @param {Hasher} [hasher=Poseidon.hash]
+   * @param {number} height
+   * @param {{ hasher?: Hasher; hashValue?: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashValue: true,
+   *     }]
    * @return {*}  {Promise<NumIndexSparseMerkleTree<V>>}
    * @memberof NumIndexSparseMerkleTree
    */
   public static async buildNewTree<V extends FieldElements>(
     store: Store<V>,
     height: number,
-    hasher: Hasher = Poseidon.hash
+    options: { hasher?: Hasher; hashValue?: boolean } = {
+      hasher: Poseidon.hash,
+      hashValue: true,
+    }
   ): Promise<NumIndexSparseMerkleTree<V>> {
     if (height > SMT_DEPTH || height < 1) {
-      throw new Error('The height must be between 1 and ' + SMT_DEPTH);
+      throw new Error(`The height must be between 1 and ${SMT_DEPTH}`);
+    }
+
+    let hasher: Hasher = Poseidon.hash;
+    let hashValue = true;
+    if (options.hasher !== undefined) {
+      hasher = options.hasher;
+    }
+    if (options.hashValue !== undefined) {
+      hashValue = options.hashValue;
     }
 
     store.clearPrepareOperationCache();
@@ -60,7 +77,7 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
     store.prepareUpdateRoot(root);
     await store.commit();
 
-    return new NumIndexSparseMerkleTree(root, store, height, hasher);
+    return new NumIndexSparseMerkleTree(root, store, height, hasher, hashValue);
   }
 
   /**
@@ -69,29 +86,45 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
    * @static
    * @template V
    * @param {Store<V>} store
-   * @param {Hasher} [hasher=Poseidon.hash]
+   * @param {number} height
+   * @param {{ hasher?: Hasher; hashValue?: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashValue: true,
+   *     }]
    * @return {*}  {Promise<NumIndexSparseMerkleTree<V>>}
    * @memberof NumIndexSparseMerkleTree
    */
   public static async importTree<V extends FieldElements>(
     store: Store<V>,
     height: number,
-    hasher: Hasher = Poseidon.hash
+    options: { hasher?: Hasher; hashValue?: boolean } = {
+      hasher: Poseidon.hash,
+      hashValue: true,
+    }
   ): Promise<NumIndexSparseMerkleTree<V>> {
     if (height > SMT_DEPTH || height < 1) {
       throw new Error('The height must be between 1 and ' + SMT_DEPTH);
     }
+    let hasher: Hasher = Poseidon.hash;
+    let hashValue = true;
+    if (options.hasher !== undefined) {
+      hasher = options.hasher;
+    }
+    if (options.hashValue !== undefined) {
+      hashValue = options.hashValue;
+    }
 
     const root: Field = await store.getRoot();
 
-    return new NumIndexSparseMerkleTree(root, store, height, hasher);
+    return new NumIndexSparseMerkleTree(root, store, height, hasher, hashValue);
   }
 
   private constructor(
     root: Field,
     store: Store<V>,
     height: number,
-    hasher: Hasher
+    hasher: Hasher,
+    hashValue: boolean
   ) {
     if (height > SMT_DEPTH || height < 1) {
       throw new Error('The height must be between 1 and ' + SMT_DEPTH);
@@ -99,6 +132,7 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
 
     this.store = store;
     this.hasher = hasher;
+    this.hashValue = hashValue;
     this.root = root;
     this.height = height;
 
@@ -337,7 +371,18 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
   ): Field {
     let currentHash: Field;
     if (value !== undefined) {
-      currentHash = this.digest(value.toFields());
+      if (this.hashValue) {
+        currentHash = this.digest(value.toFields());
+      } else {
+        let fs = value.toFields();
+        if (fs.length > 1) {
+          throw new Error(
+            `The length of value fields is greater than 1, the value needs to be hashed before it can be processed, option 'hashValue' must be set to true`
+          );
+        }
+
+        currentHash = fs[0];
+      }
       this.store.preparePutValue(path, value);
     } else {
       currentHash = SMT_EMPTY_VALUE;

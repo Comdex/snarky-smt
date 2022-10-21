@@ -3,11 +3,7 @@ import { SMT_EMPTY_VALUE } from '../src/lib/constant';
 import { decompactProof, verifyProof } from '../src/lib/proofs';
 import { SparseMerkleTree } from '../src/lib/smt';
 import { MemoryStore } from '../src/lib/store/memory_store';
-import { createEmptyValue } from '../src/lib/utils';
-import {
-  verifyProofByFieldInCircuit,
-  verifyProofInCircuit,
-} from '../src/lib/verify_circuit';
+import { verifyProofInCircuit } from '../src/lib/verify_circuit';
 
 describe('SparseMerkleTree', () => {
   let tree: SparseMerkleTree<Field, Field>;
@@ -85,10 +81,16 @@ describe('SparseMerkleTree', () => {
     expect(verifyProof(proof, root, x, y));
   });
 
+  function log(...objs: any) {
+    Circuit.asProver(() => {
+      console.log(objs);
+    });
+  }
+
   it('should verify proof in circuit correctly', async () => {
     const x = Field(7);
     const y = Field(8);
-    const z = Poseidon.hash([Field(9)]);
+    const z = Field(9);
     const root = await tree.update(x, y);
 
     const cproof = await tree.proveCompact(x);
@@ -97,26 +99,20 @@ describe('SparseMerkleTree', () => {
     const zproof = await tree.prove(z);
 
     Circuit.runAndCheck(() => {
-      let ok = verifyProofInCircuit(proof, root, x, y, Field);
-      ok.assertEquals(true);
-
-      ok = verifyProofInCircuit(
+      let ok = verifyProofInCircuit(
         zproof,
         root,
-        z,
-        createEmptyValue<Field>(Field),
-        Field
+        Poseidon.hash([z]),
+        SMT_EMPTY_VALUE
       );
-      ok.assertEquals(true);
+      ok.assertTrue();
+      log('z nonMembership assert success');
 
       const xHash = Poseidon.hash([x]);
       const yHash = Poseidon.hash([y]);
-      ok = verifyProofByFieldInCircuit(proof, root, xHash, yHash);
-      ok.assertEquals(true);
-
-      const zhash = Poseidon.hash([z]);
-      ok = verifyProofByFieldInCircuit(zproof, root, zhash, SMT_EMPTY_VALUE);
-      ok.assertEquals(true);
+      ok = verifyProofInCircuit(proof, root, xHash, yHash);
+      ok.assertTrue();
+      log('x y membership assert success');
     });
   });
 });

@@ -86,16 +86,10 @@ class Leaderboard extends SmartContract {
     this.commitment.assertEquals(commitment);
 
     // We need to prove that the numerically indexed account does not exist in the merkle tree.
-    // Or you can use generic methods
-    // const emptyAccount = createEmptyValue(Account);
-    // proof
-    //   .verifyInCircuit<Account>(commitment, emptyAccount, Account)
-    //   .assertTrue();
-
-    proof.verifyByFieldInCircuit(commitment, SMT_EMPTY_VALUE).assertTrue();
+    proof.verifyInCircuit(commitment, SMT_EMPTY_VALUE).assertTrue();
 
     // Add a new account under the same numeric index.
-    let newCommitment = proof.computeRootByFieldInCircuit(account.hash());
+    let newCommitment = proof.computeRootInCircuit(account.hash());
     this.commitment.set(newCommitment);
   }
 
@@ -113,14 +107,13 @@ class Leaderboard extends SmartContract {
     this.commitment.assertEquals(commitment);
 
     // we check that the account is within the committed Merkle Tree
-    proof.verifyByFieldInCircuit(commitment, account.hash()).assertTrue();
-    //proof.computeRootByFieldInCircuit(account.hash()).assertEquals(commitment);
+    proof.verifyInCircuit(commitment, account.hash()).assertTrue();
 
     // we update the account and grant one point!
     let newAccount = account.addPoints(1);
 
     // we calculate the new Merkle Root, based on the account changes
-    let newCommitment = proof.computeRootByFieldInCircuit(newAccount.hash());
+    let newCommitment = proof.computeRootInCircuit(newAccount.hash());
 
     this.commitment.set(newCommitment);
   }

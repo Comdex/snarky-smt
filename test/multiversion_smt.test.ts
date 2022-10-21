@@ -2,12 +2,8 @@ import { Circuit, Field, isReady, Poseidon, shutdown } from 'snarkyjs';
 import { decompactProof, verifyProof } from '../src/lib/proofs';
 import { MultiVersionSparseMerkleTree } from '../src/lib/multiversion_smt';
 import { MemoryStore } from '../src/lib/store/memory_store';
-import {
-  verifyProofByFieldInCircuit,
-  verifyProofInCircuit,
-} from '../src/lib/verify_circuit';
+import { verifyProofInCircuit } from '../src/lib/verify_circuit';
 import { SMT_EMPTY_VALUE } from '../src/lib/constant';
-import { createEmptyValue } from '../src/lib/utils';
 
 describe('MultiVersionSparseMerkleTree', () => {
   let tree: MultiVersionSparseMerkleTree<Field, Field>;
@@ -114,7 +110,7 @@ describe('MultiVersionSparseMerkleTree', () => {
   it('should verify proof in circuit correctly', async () => {
     const x = Field(7);
     const y = Field(8);
-    const z = Poseidon.hash([Field(9)]);
+    const z = Field(9);
     const root = await tree.update(x, y);
 
     const cproof = await tree.proveCompact(x);
@@ -123,26 +119,18 @@ describe('MultiVersionSparseMerkleTree', () => {
     const zproof = await tree.prove(z);
 
     Circuit.runAndCheck(() => {
-      let ok = verifyProofInCircuit(proof, root, x, y, Field);
-      ok.assertEquals(true);
-
-      ok = verifyProofInCircuit(
+      let ok = verifyProofInCircuit(
         zproof,
         root,
-        z,
-        createEmptyValue<Field>(Field),
-        Field
+        Poseidon.hash([z]),
+        SMT_EMPTY_VALUE
       );
-      ok.assertEquals(true);
+      ok.assertTrue();
 
       const xHash = Poseidon.hash([x]);
       const yHash = Poseidon.hash([y]);
-      ok = verifyProofByFieldInCircuit(proof, root, xHash, yHash);
-      ok.assertEquals(true);
-
-      const zhash = Poseidon.hash([z]);
-      ok = verifyProofByFieldInCircuit(zproof, root, zhash, SMT_EMPTY_VALUE);
-      ok.assertEquals(true);
+      ok = verifyProofInCircuit(proof, root, xHash, yHash);
+      ok.assertTrue();
     });
   });
 });

@@ -24,6 +24,7 @@
   ],
   "type": "module",
   "scripts": {
+    "option": "tsc -p tsconfig.json && node --stack-trace-limit=1000 --experimental-specifier-resolution=node ./build/src/experimental/option.js",
     "demo": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/experimental/demo.js",
     "ctree": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/experimental/ctree.js",
     "subtree": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/experimental/subtree.js",
@@ -38,8 +39,10 @@
     "doc:json": "typedoc src/index.ts --exclude **/*.test.ts --json build/docs/typedoc.json",
     "doc:publish": "gh-pages -m \"[ci skip] Updates\" -d build/docs",
     "test2": "jest --config jest.config.js --maxWorkers=50%",
-    "test": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js",
+    "test": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js --maxWorkers 3",
     "test:compact": "jest --config jest.config.js compact_smt",
+    "test:ts": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js --findRelatedTests test/compact_smt.test.ts",
+    "test:smt": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js --findRelatedTests test/compact_smt.test.ts test/smt.test.ts test/multiversion_smt.test.ts",
     "prepublishOnly": "rm -rf ./build && npm run build:module && npm run doc:html && npm run doc:publish"
   },
   "engines": {
@@ -51,7 +54,7 @@
     "levelup": "^5.1.1",
     "rocksdb": "^5.2.1",
     "mongoose": "^6.5.2",
-    "snarkyjs": "^0.6.0"
+    "snarkyjs": "^0.6.1"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.16.4",

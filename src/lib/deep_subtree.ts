@@ -30,9 +30,9 @@ class DeepSparseMerkleSubTree {
     return SMT_DEPTH;
   }
 
-  public has(keyHash: Field, valueHash: Field): boolean {
-    let v = this.valueStore.get(keyHash.toString());
-    if (v === undefined || !v.equals(valueHash).toBoolean()) {
+  public has(keyHashOrKeyField: Field, valueHashOrValueField: Field): boolean {
+    let v = this.valueStore.get(keyHashOrKeyField.toString());
+    if (v === undefined || !v.equals(valueHashOrValueField).toBoolean()) {
       return false;
     }
 
@@ -41,22 +41,22 @@ class DeepSparseMerkleSubTree {
 
   public addBranch(
     proof: SparseMerkleProof,
-    keyHash: Field,
-    valueHash: Field,
+    keyHashOrKeyField: Field,
+    valueHashOrValueField: Field,
     ignoreInvalidProof: boolean = false
   ) {
     let { ok, updates } = verifyProofWithUpdates(
       proof,
       this.root,
-      keyHash,
-      valueHash,
+      keyHashOrKeyField,
+      valueHashOrValueField,
       this.hasher
     );
 
     if (!ok) {
       if (!ignoreInvalidProof) {
         throw new Error(
-          `invalid proof, keyHash: ${keyHash.toString()}, valueHash: ${valueHash.toString()}`
+          `invalid proof, keyHash: ${keyHashOrKeyField.toString()}, valueHash: ${valueHashOrValueField.toString()}`
         );
       } else {
         return;
@@ -68,11 +68,11 @@ class DeepSparseMerkleSubTree {
       this.nodeStore.set(v[0].toString(), v[1]);
     }
 
-    this.valueStore.set(keyHash.toString(), valueHash);
+    this.valueStore.set(keyHashOrKeyField.toString(), valueHashOrValueField);
   }
 
-  public prove(keyHash: Field): SparseMerkleProof {
-    const path = keyHash;
+  public prove(keyHashOrKeyField: Field): SparseMerkleProof {
+    const path = keyHashOrKeyField;
     let pathStr = path.toString();
     let valueHash = this.valueStore.get(pathStr);
     if (valueHash === undefined) {
@@ -104,8 +104,8 @@ class DeepSparseMerkleSubTree {
     return new SparseMerkleProof(sideNodes, this.root);
   }
 
-  public update(keyHash: Field, valueHash: Field): Field {
-    const path = keyHash;
+  public update(keyHashOrKeyField: Field, valueHashOrValueField: Field): Field {
+    const path = keyHashOrKeyField;
     const treeHeight = this.getHeight();
     const pathBits = path.toBits(treeHeight);
 
@@ -129,7 +129,7 @@ class DeepSparseMerkleSubTree {
       }
     }
 
-    let currentHash = valueHash;
+    let currentHash = valueHashOrValueField;
     this.nodeStore.set(currentHash.toString(), [currentHash]);
 
     for (let i = this.getHeight() - 1; i >= 0; i--) {
@@ -146,7 +146,7 @@ class DeepSparseMerkleSubTree {
       this.nodeStore.set(currentHash.toString(), currentValue);
     }
 
-    this.valueStore.set(path.toString(), valueHash);
+    this.valueStore.set(path.toString(), valueHashOrValueField);
     this.root = currentHash;
 
     return this.root;
@@ -176,9 +176,9 @@ class NumIndexDeepSparseMerkleSubTree {
     return this.height;
   }
 
-  public has(path: Field, valueHash: Field): boolean {
+  public has(path: Field, valueHashOrValueField: Field): boolean {
     let v = this.valueStore.get(path.toString());
-    if (v === undefined || !v.equals(valueHash).toBoolean()) {
+    if (v === undefined || !v.equals(valueHashOrValueField).toBoolean()) {
       return false;
     }
 
@@ -187,21 +187,21 @@ class NumIndexDeepSparseMerkleSubTree {
 
   public addBranch(
     proof: BaseNumIndexSparseMerkleProof,
-    valueHash: Field,
+    valueHashOrValueField: Field,
     ignoreInvalidProof: boolean = false
   ) {
     const path = proof.path;
 
     let { ok, updates } = proof.verifyByFieldWithUpdates(
       this.root,
-      valueHash,
+      valueHashOrValueField,
       this.hasher
     );
 
     if (!ok) {
       if (!ignoreInvalidProof) {
         throw new Error(
-          `invalid proof, proof path: ${path.toString()}, valueHash: ${valueHash.toString()}`
+          `invalid proof, proof path: ${path.toString()}, valueHash: ${valueHashOrValueField.toString()}`
         );
       } else {
         return;
@@ -213,7 +213,7 @@ class NumIndexDeepSparseMerkleSubTree {
       this.nodeStore.set(v[0].toString(), v[1]);
     }
 
-    this.valueStore.set(path.toString(), valueHash);
+    this.valueStore.set(path.toString(), valueHashOrValueField);
   }
 
   public prove(path: Field): BaseNumIndexSparseMerkleProof {
@@ -251,7 +251,7 @@ class NumIndexDeepSparseMerkleSubTree {
     return new InnerNumIndexSparseMerkleProof(this.root, path, sideNodes);
   }
 
-  public update(path: Field, valueHash: Field): Field {
+  public update(path: Field, valueHashOrValueField: Field): Field {
     const pathBits = path.toBits(this.height);
     let sideNodes: Field[] = [];
     let nodeHash: Field = this.root;
@@ -272,7 +272,7 @@ class NumIndexDeepSparseMerkleSubTree {
       }
     }
 
-    let currentHash = valueHash;
+    let currentHash = valueHashOrValueField;
     this.nodeStore.set(currentHash.toString(), [currentHash]);
 
     for (let i = this.height - 1; i >= 0; i--) {
@@ -289,7 +289,7 @@ class NumIndexDeepSparseMerkleSubTree {
       this.nodeStore.set(currentHash.toString(), currentValue);
     }
 
-    this.valueStore.set(path.toString(), valueHash);
+    this.valueStore.set(path.toString(), valueHashOrValueField);
     this.root = currentHash;
 
     return this.root;
@@ -299,8 +299,8 @@ class NumIndexDeepSparseMerkleSubTree {
 function verifyProofWithUpdates(
   proof: SparseMerkleProof,
   expectedRoot: Field,
-  keyHash: Field,
-  valueHash: Field,
+  keyHashOrKeyField: Field,
+  valueHashOrValueField: Field,
   hasher: Hasher = Poseidon.hash
 ): { ok: boolean; updates: [Field, Field[]][] } {
   if (!proof.root.equals(expectedRoot).toBoolean()) {
@@ -309,8 +309,8 @@ function verifyProofWithUpdates(
 
   const { actualRoot, updates } = computeRoot(
     proof.sideNodes,
-    keyHash,
-    valueHash,
+    keyHashOrKeyField,
+    valueHashOrValueField,
     hasher
   );
 
@@ -319,13 +319,13 @@ function verifyProofWithUpdates(
 
 function computeRoot(
   sideNodes: Field[],
-  keyHash: Field,
-  valueHash: Field,
+  keyHashOrKeyField: Field,
+  valueHashOrValueField: Field,
   hasher: Hasher = Poseidon.hash
 ): { actualRoot: Field; updates: [Field, Field[]][] } {
-  let currentHash: Field = valueHash;
+  let currentHash: Field = valueHashOrValueField;
 
-  const pathBits = keyHash.toBits(SMT_DEPTH);
+  const pathBits = keyHashOrKeyField.toBits(SMT_DEPTH);
   let updates: [Field, Field[]][] = [];
 
   updates.push([currentHash, [currentHash]]);

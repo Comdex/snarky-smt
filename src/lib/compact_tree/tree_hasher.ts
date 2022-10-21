@@ -1,19 +1,27 @@
-import { Field, isReady, Poseidon } from 'snarkyjs';
+import { Bool, Field, isReady, Poseidon } from 'snarkyjs';
 import { FieldElements } from '../model';
 import { Hasher } from '../proofs';
 
 await isReady;
-const emptyPrefix = Field.zero;
-const leafPrefix = Field.one;
+
+export { TreeHasher };
+
+const emptyPrefix = Field(0);
+const leafPrefix = Field(1);
 const nodePrefix = Field(2);
 
-export class TreeHasher<K extends FieldElements, V extends FieldElements> {
+class TreeHasher<K extends FieldElements, V extends FieldElements> {
   private hasher: Hasher;
-  private zeroValue: Field;
 
   constructor(hasher: Hasher = Poseidon.hash) {
     this.hasher = hasher;
-    this.zeroValue = Field.zero;
+  }
+
+  static poseidon<
+    K extends FieldElements,
+    V extends FieldElements
+  >(): TreeHasher<K, V> {
+    return new TreeHasher();
   }
 
   digest(data: V): Field {
@@ -21,11 +29,6 @@ export class TreeHasher<K extends FieldElements, V extends FieldElements> {
   }
 
   path(k: K): Field {
-    // support raw Field key, can not use instanceof Field
-    const fs = k.toFields();
-    if (fs.length === 1) {
-      return fs[0];
-    }
     return this.hasher(k.toFields());
   }
 
@@ -57,6 +60,10 @@ export class TreeHasher<K extends FieldElements, V extends FieldElements> {
     return data[0].equals(emptyPrefix).toBoolean();
   }
 
+  isEmptyDataInCircuit(data: Field[]): Bool {
+    return data[0].equals(emptyPrefix);
+  }
+
   emptyData(): Field[] {
     return [emptyPrefix, Field.zero, Field.zero];
   }
@@ -78,9 +85,5 @@ export class TreeHasher<K extends FieldElements, V extends FieldElements> {
       leftNode: data[1],
       rightNode: data[2],
     };
-  }
-
-  placeholder(): Field {
-    return this.zeroValue;
   }
 }

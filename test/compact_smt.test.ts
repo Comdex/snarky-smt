@@ -1,15 +1,16 @@
 import { Circuit, Field, isReady, Poseidon, shutdown } from 'snarkyjs';
-import { CSparseMerkleTree } from '../src/lib/compact_tree/smt';
+import { CompactSparseMerkleTree } from '../src/lib/compact_tree/smt';
 import { MemoryStore } from '../src/lib/store/memory_store';
 import {
   c_decompactProof,
   c_verifyProof,
 } from '../src/lib/compact_tree/proofs';
 import { c_verifyProofInCircuit } from '../src/lib/compact_tree/verify_circuit';
-import { createEmptyValue } from '../src/lib/utils';
+import { TreeHasher } from '../src/lib/compact_tree/tree_hasher';
+import { SMT_EMPTY_VALUE } from '../src/lib/constant';
 
-describe('CSparseMerkleTree', () => {
-  let tree: CSparseMerkleTree<Field, Field>;
+describe('CompactSparseMerkleTree', () => {
+  let tree: CompactSparseMerkleTree<Field, Field>;
 
   // beforeAll(async () => {
   //   await isReady;
@@ -24,7 +25,7 @@ describe('CSparseMerkleTree', () => {
 
   beforeEach(async () => {
     await isReady;
-    tree = new CSparseMerkleTree<Field, Field>(new MemoryStore<Field>());
+    tree = new CompactSparseMerkleTree<Field, Field>(new MemoryStore<Field>());
   });
 
   it('should create and verify proof correctly', async () => {
@@ -93,27 +94,37 @@ describe('CSparseMerkleTree', () => {
     expect(!th.isEmptyData(proof.siblingData));
   });
 
+  function log(...objs: any) {
+    Circuit.asProver(() => {
+      console.log(objs);
+    });
+  }
+
   it('should verify proof in circuit correctly', async () => {
     const x = Field(7);
     const y = Field(8);
-    const z = Poseidon.hash([Field(9)]);
+    const z = Field(9);
     const root = await tree.update(x, y);
     const cproof = await tree.proveCompact(x);
     const proof = c_decompactProof(cproof);
     const zproof = await tree.prove(z);
 
     Circuit.runAndCheck(() => {
-      let ok = c_verifyProofInCircuit<Field, Field>(proof, root, x, y, Field);
-      console.log(ok.toString());
-      ok.assertEquals(true);
+      const th = new TreeHasher();
+      let xHash = th.path(x);
+      let yHash = th.digest(y);
+      let ok = c_verifyProofInCircuit(proof, root, xHash, yHash, th);
+      ok.assertTrue();
+      log('x y membership assert success');
 
-      c_verifyProofInCircuit<Field, Field>(
+      c_verifyProofInCircuit(
         zproof,
         root,
-        z,
-        createEmptyValue<Field>(Field),
-        Field
+        th.path(z),
+        SMT_EMPTY_VALUE,
+        th
       ).assertTrue();
+      log('z nonMembership assert success');
     });
   });
 });

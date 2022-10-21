@@ -3,7 +3,6 @@ import { SMT_EMPTY_VALUE } from '../src/lib/constant';
 import { decompactNumIndexProof } from '../src/lib/proofs';
 import { NumIndexSparseMerkleTree } from '../src/lib/numindex_smt';
 import { MemoryStore } from '../src/lib/store/memory_store';
-import { createEmptyValue } from '../src/lib/utils';
 
 describe('SparseMerkleTree', () => {
   let tree: NumIndexSparseMerkleTree<Field>;
@@ -94,14 +93,14 @@ describe('SparseMerkleTree', () => {
     const zproof = await tree.prove(z);
 
     Circuit.runAndCheck(() => {
-      proof.verifyInCircuit(root, y, Field).assertTrue();
+      proof.verifyInCircuit(root, Poseidon.hash([y])).assertTrue();
 
-      zproof.verifyInCircuit(root, createEmptyValue(Field), Field).assertTrue();
+      zproof.verifyInCircuit(root, SMT_EMPTY_VALUE).assertTrue();
 
       const yHash = Poseidon.hash([y]);
-      proof.verifyByFieldInCircuit(root, yHash).assertTrue();
+      proof.verifyInCircuit(root, yHash).assertTrue();
 
-      zproof.verifyByFieldInCircuit(root, SMT_EMPTY_VALUE).assertTrue();
+      zproof.verifyInCircuit(root, SMT_EMPTY_VALUE).assertTrue();
     });
   });
 });

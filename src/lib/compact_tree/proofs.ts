@@ -7,21 +7,31 @@ import {
   Poseidon,
   prop,
 } from 'snarkyjs';
-import { CP_PADD_VALUE, RIGHT, SMT_DEPTH } from '../constant';
+import { CP_PADD_VALUE, RIGHT, SMT_DEPTH, SMT_EMPTY_VALUE } from '../constant';
 import { FieldElements } from '../model';
 import { Hasher } from '../proofs';
 import { TreeHasher } from './tree_hasher';
 
 await isReady;
 
+export {
+  CompactSparseMerkleProof,
+  c_compactProof,
+  c_decompactProof,
+  c_verifyCompactProof,
+  c_verifyProof,
+  c_verifyProofWithUpdates,
+};
+export type { CSparseCompactMerkleProof };
+
 /**
  * Proof for Compact Sparse Merkle Tree
  *
  * @export
- * @class CSparseMerkleProof
+ * @class CompactSparseMerkleProof
  * @extends {CircuitValue}
  */
-export class CSparseMerkleProof extends CircuitValue {
+class CompactSparseMerkleProof extends CircuitValue {
   @arrayProp(Field, SMT_DEPTH) sideNodes: Field[];
   @arrayProp(Field, 3) nonMembershipLeafData: Field[];
   @arrayProp(Field, 3) siblingData: Field[];
@@ -34,16 +44,15 @@ export class CSparseMerkleProof extends CircuitValue {
     root: Field
   ) {
     super();
-    if (sideNodes.length > SMT_DEPTH) {
+    let len = sideNodes.length;
+    if (len > SMT_DEPTH) {
       throw new Error(
-        `The number of side nodes cannot be greater than ${SMT_DEPTH}`
+        `The length of sideNodes cannot be greater than ${SMT_DEPTH}`
       );
     }
 
     // padd with CP_PADD_VALUE to a fixed length
-    for (let i = sideNodes.length; i < SMT_DEPTH; i++) {
-      sideNodes.push(CP_PADD_VALUE);
-    }
+    sideNodes = sideNodes.concat(Array(SMT_DEPTH - len).fill(CP_PADD_VALUE));
 
     this.sideNodes = sideNodes;
     this.nonMembershipLeafData = nonMembershipLeafData;
@@ -58,7 +67,7 @@ export class CSparseMerkleProof extends CircuitValue {
  * @export
  * @interface CSparseCompactMerkleProof
  */
-export interface CSparseCompactMerkleProof {
+interface CSparseCompactMerkleProof {
   sideNodes: Field[];
   nonMembershipLeafData: Field[];
   bitMask: Field;
@@ -77,38 +86,59 @@ export interface CSparseCompactMerkleProof {
  * @param {Field} root
  * @param {K} key
  * @param {V} [value]
- * @param {Hasher} [hasher=Poseidon.hash]
+ * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
+ *     hasher: Poseidon.hash,
+ *     hashKey: true,
+ *     hashValue: true,
+ *   }]
  * @return {*}  {boolean}
  */
-export function c_verifyCompactProof<
-  K extends FieldElements,
-  V extends FieldElements
->(
+function c_verifyCompactProof<K extends FieldElements, V extends FieldElements>(
   cproof: CSparseCompactMerkleProof,
   root: Field,
   key: K,
   value?: V,
-  hasher: Hasher = Poseidon.hash
+  options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
+    hasher: Poseidon.hash,
+    hashKey: true,
+    hashValue: true,
+  }
 ): boolean {
-  const proof = c_decompactProof(cproof, hasher);
-  return c_verifyProof<K, V>(proof, root, key, value, hasher);
+  const proof = c_decompactProof(cproof, options.hasher);
+  return c_verifyProof<K, V>(proof, root, key, value, options);
 }
 
-export function c_verifyProofWithUpdates<
+function c_verifyProofWithUpdates<
   K extends FieldElements,
   V extends FieldElements
 >(
-  proof: CSparseMerkleProof,
+  proof: CompactSparseMerkleProof,
   root: Field,
   key: K,
   value?: V,
-  hasher: Hasher = Poseidon.hash
+  options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
+    hasher: Poseidon.hash,
+    hashKey: true,
+    hashValue: true,
+  }
 ): {
   ok: boolean;
   updates: [Field, Field[]][] | null;
 } {
-  const th = new TreeHasher(hasher);
-  const path = th.path(key);
+  const th = new TreeHasher(options.hasher);
+
+  let path = null;
+  if (options.hashKey) {
+    path = th.path(key);
+  } else {
+    let keyFields = key.toFields();
+    if (keyFields.length > 1) {
+      throw new Error(
+        `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
+      );
+    }
+    path = keyFields[0];
+  }
 
   let updates: [Field, Field[]][] = [];
   let currentHash: Field;
@@ -116,9 +146,9 @@ export function c_verifyProofWithUpdates<
   if (value === undefined) {
     //Non-membership proof
     if (th.isEmptyData(proof.nonMembershipLeafData)) {
-      currentHash = th.placeholder();
+      currentHash = SMT_EMPTY_VALUE;
     } else {
-      const { path: actualPath, leaf: valueHash } = th.parseLeaf(
+      const { path: actualPath, leaf: valueField } = th.parseLeaf(
         proof.nonMembershipLeafData
       );
       if (actualPath.equals(path).toBoolean()) {
@@ -127,7 +157,7 @@ export function c_verifyProofWithUpdates<
           updates: null,
         };
       }
-      const result = th.digestLeaf(actualPath, valueHash);
+      const result = th.digestLeaf(actualPath, valueField);
       currentHash = result.hash;
       currentData = result.value;
       let update: [Field, Field[]] = [currentHash, currentData];
@@ -135,32 +165,49 @@ export function c_verifyProofWithUpdates<
     }
   } else {
     // Membership proof
-    const valueHash = th.digest(value);
-    const result = th.digestLeaf(path, valueHash);
+    let valueField = null;
+    if (options.hashValue) {
+      valueField = th.digest(value);
+    } else {
+      let valueFields = value.toFields();
+      if (valueFields.length > 1) {
+        throw new Error(
+          `The length of value fields is greater than 1, the value needs to be hashed before it can be processed, option 'hashValue' must be set to true`
+        );
+      }
+
+      valueField = valueFields[0];
+    }
+
+    const result = th.digestLeaf(path, valueField);
     currentHash = result.hash;
     currentData = result.value;
     const update: [Field, Field[]] = [currentHash, currentData];
     updates.push(update);
   }
 
-  let sideNodesLength = 0;
-  for (let i = 0; i < proof.sideNodes.length; i++) {
+  let realSideNodesLength = 0;
+  for (
+    let i = 0, sideNodesLength = proof.sideNodes.length;
+    i < sideNodesLength;
+    i++
+  ) {
     if (proof.sideNodes[i].equals(CP_PADD_VALUE).toBoolean()) {
       break;
     }
-    sideNodesLength++;
+    realSideNodesLength++;
   }
 
   const pathBits = path.toBits(SMT_DEPTH);
   //Recompute root
-  for (let i = 0; i < sideNodesLength; i++) {
+  for (let i = 0; i < realSideNodesLength; i++) {
     let node = proof.sideNodes[i];
 
     if (node.equals(CP_PADD_VALUE).toBoolean()) {
       break;
     }
 
-    if (pathBits[sideNodesLength - 1 - i].toBoolean() === RIGHT) {
+    if (pathBits[realSideNodesLength - 1 - i].toBoolean() === RIGHT) {
       const result = th.digestNode(node, currentHash);
       currentHash = result.hash;
       currentData = result.value;
@@ -186,26 +233,34 @@ export function c_verifyProofWithUpdates<
  * @export
  * @template K
  * @template V
- * @param {CSparseMerkleProof} proof
+ * @param {CompactSparseMerkleProof} proof
  * @param {Field} root
  * @param {K} key
  * @param {V} [value]
- * @param {Hasher} [hasher=Poseidon.hash]
+ * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
+ *     hasher: Poseidon.hash,
+ *     hashKey: true,
+ *     hashValue: true,
+ *   }]
  * @return {*}  {boolean}
  */
-export function c_verifyProof<K extends FieldElements, V extends FieldElements>(
-  proof: CSparseMerkleProof,
+function c_verifyProof<K extends FieldElements, V extends FieldElements>(
+  proof: CompactSparseMerkleProof,
   root: Field,
   key: K,
   value?: V,
-  hasher: Hasher = Poseidon.hash
+  options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
+    hasher: Poseidon.hash,
+    hashKey: true,
+    hashValue: true,
+  }
 ): boolean {
   const { ok } = c_verifyProofWithUpdates<K, V>(
     proof,
     root,
     key,
     value,
-    hasher
+    options
   );
   return ok;
 }
@@ -214,15 +269,14 @@ export function c_verifyProof<K extends FieldElements, V extends FieldElements>(
  * Compact proof Of Compact Sparse Merkle Tree
  *
  * @export
- * @param {CSparseMerkleProof} proof
+ * @param {CompactSparseMerkleProof} proof
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {CSparseCompactMerkleProof}
  */
-export function c_compactProof(
-  proof: CSparseMerkleProof,
+function c_compactProof(
+  proof: CompactSparseMerkleProof,
   hasher: Hasher = Poseidon.hash
 ): CSparseCompactMerkleProof {
-  const th = new TreeHasher(hasher);
   const sideNodes = proof.sideNodes;
   const sideNodesLength = sideNodes.length;
   let bits = Array<Bool>(SMT_DEPTH).fill(Bool(false));
@@ -235,7 +289,7 @@ export function c_compactProof(
     }
 
     oriSideNodesLength++;
-    if (sideNodes[i].equals(th.placeholder()).toBoolean()) {
+    if (sideNodes[i].equals(SMT_EMPTY_VALUE).toBoolean()) {
       bits[i] = Bool(true);
     } else {
       compactedSideNodes.push(sideNodes[i]);
@@ -260,25 +314,24 @@ export function c_compactProof(
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {CSparseMerkleProof}
  */
-export function c_decompactProof(
+function c_decompactProof(
   proof: CSparseCompactMerkleProof,
   hasher: Hasher = Poseidon.hash
-): CSparseMerkleProof {
-  const th = new TreeHasher(hasher);
+): CompactSparseMerkleProof {
   let decompactedSideNodes = [];
   let position = 0;
 
   const bits = proof.bitMask.toBits();
   for (let i = 0; i < proof.numSideNodes; i++) {
     if (bits[i].toBoolean()) {
-      decompactedSideNodes[i] = th.placeholder();
+      decompactedSideNodes[i] = SMT_EMPTY_VALUE;
     } else {
       decompactedSideNodes[i] = proof.sideNodes[position];
       position++;
     }
   }
 
-  return new CSparseMerkleProof(
+  return new CompactSparseMerkleProof(
     decompactedSideNodes,
     proof.nonMembershipLeafData,
     proof.siblingData,

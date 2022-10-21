@@ -1,6 +1,5 @@
 import {
   arrayProp,
-  AsFieldElements,
   Bool,
   Circuit,
   CircuitValue,
@@ -51,15 +50,23 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
   path: Field;
   sideNodes: Field[];
 
+  height(): number {
+    return (this.constructor as any).height;
+  }
+
   constructor(root: Field, path: Field, sideNodes: Field[]) {
     super();
+    if (sideNodes.length !== this.height()) {
+      throw Error(
+        `The Length of sideNodes ${
+          sideNodes.length
+        } doesn't match static tree height ${this.height()}`
+      );
+    }
+
     this.root = root;
     this.path = path;
     this.sideNodes = sideNodes;
-  }
-
-  height(): number {
-    return (this.constructor as any).height;
   }
 
   /**
@@ -67,17 +74,34 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
    *
    * @template V
    * @param {V} [value]
-   * @param {Hasher} [hasher=Poseidon.hash]
+   * @param {{ hasher: Hasher; hashValue: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashValue: true,
+   *     }]
    * @return {*}  {Field}
    * @memberof BaseNumIndexSparseMerkleProof
    */
   computeRoot<V extends FieldElements>(
     value?: V,
-    hasher: Hasher = Poseidon.hash
+    options: { hasher: Hasher; hashValue: boolean } = {
+      hasher: Poseidon.hash,
+      hashValue: true,
+    }
   ): Field {
     let currentHash: Field;
     if (value !== undefined) {
-      currentHash = hasher(value.toFields());
+      if (options.hashValue) {
+        currentHash = options.hasher(value.toFields());
+      } else {
+        let fs = value.toFields();
+        if (fs.length > 1) {
+          throw new Error(
+            `The length of value fields is greater than 1, the value needs to be hashed before it can be processed, option 'hashValue' must be set to true`
+          );
+        }
+
+        currentHash = fs[0];
+      }
     } else {
       currentHash = SMT_EMPTY_VALUE;
     }
@@ -92,9 +116,9 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
     for (let i = h - 1; i >= 0; i--) {
       let node = this.sideNodes[i];
       if (pathBits[i].toBoolean() === RIGHT) {
-        currentHash = hasher([node, currentHash]);
+        currentHash = options.hasher([node, currentHash]);
       } else {
-        currentHash = hasher([currentHash, node]);
+        currentHash = options.hasher([currentHash, node]);
       }
     }
 
@@ -107,40 +131,46 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
    * @template V
    * @param {Field} expectedRoot
    * @param {V} [value]
-   * @param {Hasher} [hasher=Poseidon.hash]
+   * @param {{ hasher: Hasher; hashValue: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashValue: true,
+   *     }]
    * @return {*}  {boolean}
    * @memberof BaseNumIndexSparseMerkleProof
    */
   verify<V extends FieldElements>(
     expectedRoot: Field,
     value?: V,
-    hasher: Hasher = Poseidon.hash
+    options: { hasher: Hasher; hashValue: boolean } = {
+      hasher: Poseidon.hash,
+      hashValue: true,
+    }
   ): boolean {
     if (!this.root.equals(expectedRoot).toBoolean()) {
       return false;
     }
-    let currentRoot = this.computeRoot<V>(value, hasher);
+    let currentRoot = this.computeRoot<V>(value, options);
 
     return currentRoot.equals(expectedRoot).toBoolean();
   }
 
   verifyByField(
     expectedRoot: Field,
-    valueHash: Field,
+    valueHashOrValueField: Field,
     hasher: Hasher = Poseidon.hash
   ): boolean {
     if (!this.root.equals(expectedRoot).toBoolean()) {
       return false;
     }
 
-    let currentRoot = this.computeRootByField(valueHash, hasher);
+    let currentRoot = this.computeRootByField(valueHashOrValueField, hasher);
 
     return currentRoot.equals(expectedRoot).toBoolean();
   }
 
   verifyByFieldWithUpdates(
     expectedRoot: Field,
-    valueHash: Field,
+    valueHashOrValueField: Field,
     hasher: Hasher = Poseidon.hash
   ): { ok: boolean; updates: [Field, Field[]][] } {
     if (!this.root.equals(expectedRoot).toBoolean()) {
@@ -148,94 +178,19 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
     }
 
     let { actualRoot, updates } = this.computeRootByFieldWithUpdates(
-      valueHash,
+      valueHashOrValueField,
       hasher
     );
 
     return { ok: actualRoot.equals(expectedRoot).toBoolean(), updates };
   }
 
-  /**
-   * Calculate new root based on value and valueType in circuit.
-   *
-   * @template V
-   * @param {V} value
-   * @param {AsFieldElements<V>} valueType
-   * @param {Hasher} [hasher=Poseidon.hash]
-   * @return {*}  {Field}
-   * @memberof BaseNumIndexSparseMerkleProof
-   */
-  computeRootInCircuit<V extends CircuitValue>(
-    value: V,
-    valueType: AsFieldElements<V>,
-    hasher: Hasher = Poseidon.hash
-  ): Field {
-    const emptyValue = createEmptyValue<V>(valueType);
-    let currentHash: Field = Circuit.if(
-      value.equals(emptyValue).not(),
-      hasher(value.toFields()),
-      SMT_EMPTY_VALUE
-    );
-
-    return this.computeRootByFieldInCircuit(currentHash, hasher);
-  }
-
-  /**
-   * Verify this merkle proof in circuit.
-   *
-   * @template V
-   * @param {Field} expectedRoot
-   * @param {V} value
-   * @param {AsFieldElements<V>} valueType
-   * @param {Hasher} [hasher=Poseidon.hash]
-   * @return {*}  {Bool}
-   * @memberof BaseNumIndexSparseMerkleProof
-   */
-  verifyInCircuit<V extends CircuitValue>(
-    expectedRoot: Field,
-    value: V,
-    valueType: AsFieldElements<V>,
-    hasher: Hasher = Poseidon.hash
-  ): Bool {
-    const currentRoot = this.computeRootInCircuit(value, valueType, hasher);
-
-    return expectedRoot.equals(currentRoot);
-  }
-
-  /**
-   * Calculate new root based on valueHash in circuit.
-   *
-   * @param {Field} valueHash
-   * @param {Hasher} [hasher=Poseidon.hash]
-   * @return {*}  {Field}
-   * @memberof BaseNumIndexSparseMerkleProof
-   */
-  computeRootByFieldInCircuit(
-    valueHash: Field,
+  computeRootByField(
+    valueHashOrValueField: Field,
     hasher: Hasher = Poseidon.hash
   ): Field {
     let h = this.height();
-    let currentHash: Field = valueHash;
-    Field(this.sideNodes.length).assertEquals(h);
-
-    const pathBits = this.path.toBits(h);
-    for (let i = h - 1; i >= 0; i--) {
-      let node = this.sideNodes[i];
-
-      let currentValue = Circuit.if(
-        pathBits[i],
-        [node, currentHash],
-        [currentHash, node]
-      );
-
-      currentHash = hasher(currentValue);
-    }
-    return currentHash;
-  }
-
-  computeRootByField(valueHash: Field, hasher: Hasher = Poseidon.hash): Field {
-    let h = this.height();
-    let currentHash: Field = valueHash;
+    let currentHash: Field = valueHashOrValueField;
     Field(this.sideNodes.length).assertEquals(h);
 
     const pathBits = this.path.toBits(h);
@@ -253,11 +208,11 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
   }
 
   computeRootByFieldWithUpdates(
-    valueHash: Field,
+    valueHashOrValueField: Field,
     hasher: Hasher = Poseidon.hash
   ): { actualRoot: Field; updates: [Field, Field[]][] } {
     let h = this.height();
-    let currentHash: Field = valueHash;
+    let currentHash: Field = valueHashOrValueField;
     let updates: [Field, Field[]][] = [];
     updates.push([currentHash, [currentHash]]);
 
@@ -277,22 +232,62 @@ class BaseNumIndexSparseMerkleProof extends CircuitValue {
   }
 
   /**
-   * Verify this merkle proof by root and valueHash in circuit.
+   * Calculate new root based on valueHashOrValueField in circuit.
+   *
+   * @param {Field} valueHashOrValueField
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {Field}
+   * @memberof BaseNumIndexSparseMerkleProof
+   */
+  computeRootInCircuit(
+    valueHashOrValueField: Field,
+    hasher: Hasher = Poseidon.hash
+  ): Field {
+    let h = this.height();
+    let currentHash = valueHashOrValueField;
+
+    const pathBits = this.path.toBits(h);
+    for (let i = h - 1; i >= 0; i--) {
+      let node = this.sideNodes[i];
+
+      let currentValue = Circuit.if(
+        pathBits[i],
+        [node, currentHash],
+        [currentHash, node]
+      );
+
+      currentHash = hasher(currentValue);
+    }
+    return currentHash;
+  }
+
+  /**
+   * Verify this merkle proof by root and valueHashOrValueField in circuit.
    *
    * @param {Field} expectedRoot
-   * @param {Field} valueHash
+   * @param {Field} valueHashOrValueField
    * @param {Hasher} [hasher=Poseidon.hash]
    * @return {*}  {Bool}
    * @memberof BaseNumIndexSparseMerkleProof
    */
-  verifyByFieldInCircuit(
+  verifyInCircuit(
     expectedRoot: Field,
-    valueHash: Field,
+    valueHashOrValueField: Field,
     hasher: Hasher = Poseidon.hash
   ): Bool {
-    const currentRoot = this.computeRootByFieldInCircuit(valueHash, hasher);
+    const currentRoot = this.computeRootInCircuit(
+      valueHashOrValueField,
+      hasher
+    );
 
     return expectedRoot.equals(currentRoot);
+  }
+
+  checkNonMembershipInCircuit(
+    expectedRoot: Field,
+    hasher: Hasher = Poseidon.hash
+  ): Bool {
+    return this.verifyInCircuit(expectedRoot, SMT_EMPTY_VALUE, hasher);
   }
 }
 
@@ -443,24 +438,36 @@ interface SparseCompactMerkleProof {
 /**
  * Calculate new root based on sideNodes, key and value
  *
- * @export
  * @template K
  * @template V
  * @param {Field[]} sideNodes
  * @param {K} key
  * @param {V} [value]
- * @param {Hasher} [hasher=Poseidon.hash]
+ * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
+ *     hasher: Poseidon.hash,
+ *     hashKey: true,
+ *     hashValue: true,
+ *   }]
  * @return {*}  {Field}
  */
 function computeRoot<K extends FieldElements, V extends FieldElements>(
   sideNodes: Field[],
   key: K,
   value?: V,
-  hasher: Hasher = Poseidon.hash
+  options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
+    hasher: Poseidon.hash,
+    hashKey: true,
+    hashValue: true,
+  }
 ): Field {
   let currentHash: Field;
   if (value !== undefined) {
-    currentHash = hasher(value.toFields());
+    let valueFields = value.toFields();
+    if (options.hashValue) {
+      currentHash = options.hasher(valueFields);
+    } else {
+      currentHash = valueFields[0];
+    }
   } else {
     currentHash = SMT_EMPTY_VALUE;
   }
@@ -469,14 +476,21 @@ function computeRoot<K extends FieldElements, V extends FieldElements>(
     throw new Error('Invalid sideNodes size');
   }
 
-  const path = hasher(key.toFields());
+  let path = null;
+  let keyFields = key.toFields();
+  if (options.hashKey) {
+    path = options.hasher(keyFields);
+  } else {
+    path = keyFields[0];
+  }
+
   const pathBits = path.toBits();
   for (let i = SMT_DEPTH - 1; i >= 0; i--) {
     let node = sideNodes[i];
     if (pathBits[i].toBoolean() === RIGHT) {
-      currentHash = hasher([node, currentHash]);
+      currentHash = options.hasher([node, currentHash]);
     } else {
-      currentHash = hasher([currentHash, node]);
+      currentHash = options.hasher([currentHash, node]);
     }
   }
 
@@ -486,14 +500,17 @@ function computeRoot<K extends FieldElements, V extends FieldElements>(
 /**
  * Verify a merkle proof
  *
- * @export
  * @template K
  * @template V
  * @param {SparseMerkleProof} proof
  * @param {Field} expectedRoot
  * @param {K} key
  * @param {V} [value]
- * @param {Hasher} [hasher=Poseidon.hash]
+ * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
+ *     hasher: Poseidon.hash,
+ *     hashKey: true,
+ *     hashValue: true,
+ *   }]
  * @return {*}  {boolean}
  */
 function verifyProof<K extends FieldElements, V extends FieldElements>(
@@ -501,12 +518,16 @@ function verifyProof<K extends FieldElements, V extends FieldElements>(
   expectedRoot: Field,
   key: K,
   value?: V,
-  hasher: Hasher = Poseidon.hash
+  options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
+    hasher: Poseidon.hash,
+    hashKey: true,
+    hashValue: true,
+  }
 ): boolean {
   if (!proof.root.equals(expectedRoot).toBoolean()) {
     return false;
   }
-  let newRoot = computeRoot<K, V>(proof.sideNodes, key, value, hasher);
+  let newRoot = computeRoot<K, V>(proof.sideNodes, key, value, options);
 
   return newRoot.equals(expectedRoot).toBoolean();
 }
@@ -514,14 +535,17 @@ function verifyProof<K extends FieldElements, V extends FieldElements>(
 /**
  * Verify a compacted merkle proof
  *
- * @export
  * @template K
  * @template V
  * @param {SparseCompactMerkleProof} cproof
  * @param {Field} expectedRoot
  * @param {K} key
  * @param {V} [value]
- * @param {Hasher} [hasher=Poseidon.hash]
+ * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
+ *     hasher: Poseidon.hash,
+ *     hashKey: true,
+ *     hashValue: true,
+ *   }]
  * @return {*}  {boolean}
  */
 function verifyCompactProof<K extends FieldElements, V extends FieldElements>(
@@ -529,10 +553,14 @@ function verifyCompactProof<K extends FieldElements, V extends FieldElements>(
   expectedRoot: Field,
   key: K,
   value?: V,
-  hasher: Hasher = Poseidon.hash
+  options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
+    hasher: Poseidon.hash,
+    hashKey: true,
+    hashValue: true,
+  }
 ): boolean {
-  const proof = decompactProof(cproof, hasher);
-  return verifyProof(proof, expectedRoot, key, value, hasher);
+  const proof = decompactProof(cproof, options.hasher);
+  return verifyProof(proof, expectedRoot, key, value, options);
 }
 
 /**
@@ -603,15 +631,15 @@ function decompactProof(
 
 function getUpdatesBySideNodes(
   sideNodes: Field[],
-  keyHash: Field,
-  valueHash: Field,
+  keyHashOrKeyField: Field,
+  valueHashOrValueField: Field,
   height: number = SMT_DEPTH,
   hasher: Hasher = Poseidon.hash
 ): [Field, Field[]][] {
-  let currentHash: Field = valueHash;
+  let currentHash: Field = valueHashOrValueField;
   let updates: [Field, Field[]][] = [];
 
-  const pathBits = keyHash.toBits(height);
+  const pathBits = keyHashOrKeyField.toBits(height);
   updates.push([currentHash, [currentHash]]);
 
   for (let i = height - 1; i >= 0; i--) {

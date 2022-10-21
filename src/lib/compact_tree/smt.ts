@@ -1,5 +1,11 @@
 import { Field, Poseidon } from 'snarkyjs';
-import { ERR_KEY_ALREADY_EMPTY, RIGHT, SMT_DEPTH } from '../constant';
+import {
+  CP_PADD_VALUE,
+  ERR_KEY_ALREADY_EMPTY,
+  RIGHT,
+  SMT_DEPTH,
+  SMT_EMPTY_VALUE,
+} from '../constant';
 import { FieldElements } from '../model';
 import { Hasher } from '../proofs';
 import { Store } from '../store/store';
@@ -7,40 +13,68 @@ import { countCommonPrefix, printBits } from '../utils';
 import {
   c_compactProof,
   CSparseCompactMerkleProof,
-  CSparseMerkleProof,
+  CompactSparseMerkleProof,
 } from './proofs';
 import { TreeHasher } from './tree_hasher';
+
+export { CompactSparseMerkleTree };
 
 /**
  * Experimental: CompactSparseMerkleTree
  *
  * @export
- * @class CSparseMerkleTree
+ * @class CompactSparseMerkleTree
  * @template K
  * @template V
  */
-export class CSparseMerkleTree<
+class CompactSparseMerkleTree<
   K extends FieldElements,
   V extends FieldElements
 > {
   protected th: TreeHasher<K, V>;
   protected store: Store<V>;
   protected root: Field;
+  protected config: { hashKey: boolean; hashValue: boolean };
 
   /**
-   * Creates an instance of CSparseMerkleTree.
+   * Creates an instance of CompactSparseMerkleTree.
    * @param {Store<V>} store
    * @param {Field} [root]
-   * @param {Hasher} [hasher=Poseidon.hash]
-   * @memberof CSparseMerkleTree
+   * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]
+   * @memberof CompactSparseMerkleTree
    */
-  constructor(store: Store<V>, root?: Field, hasher: Hasher = Poseidon.hash) {
+  constructor(
+    store: Store<V>,
+    root?: Field,
+    options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
+      hasher: Poseidon.hash,
+      hashKey: true,
+      hashValue: true,
+    }
+  ) {
+    let hasher = Poseidon.hash;
+    if (options.hasher !== undefined) {
+      hasher = options.hasher;
+    }
+    let config = { hashKey: true, hashValue: true };
+    if (options.hashKey !== undefined) {
+      config.hashKey = options.hashKey;
+    }
+    if (options.hashValue !== undefined) {
+      config.hashValue = options.hashValue;
+    }
+
     this.th = new TreeHasher<K, V>(hasher);
     this.store = store;
+    this.config = config;
     if (root) {
       this.root = root;
     } else {
-      this.root = this.th.placeholder();
+      this.root = SMT_EMPTY_VALUE;
     }
   }
 
@@ -52,25 +86,41 @@ export class CSparseMerkleTree<
    * @template V
    * @param {Store<V>} store
    * @param {Hasher} [hasher=Poseidon.hash]
-   * @return {*}  {Promise<CSparseMerkleTree<K, V>>}
-   * @memberof CSparseMerkleTree
+   * @return {*}  {Promise<CompactSparseMerkleTree<K, V>>}
+   * @memberof CompactSparseMerkleTree
    */
   static async importTree<K extends FieldElements, V extends FieldElements>(
     store: Store<V>,
-    hasher: Hasher = Poseidon.hash
-  ): Promise<CSparseMerkleTree<K, V>> {
+    options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
+      hasher: Poseidon.hash,
+      hashKey: true,
+      hashValue: true,
+    }
+  ): Promise<CompactSparseMerkleTree<K, V>> {
+    let hasher = Poseidon.hash;
+    if (options.hasher !== undefined) {
+      hasher = options.hasher;
+    }
+    let config = { hashKey: true, hashValue: true };
+    if (options.hashKey !== undefined) {
+      config.hashKey = options.hashKey;
+    }
+    if (options.hashValue !== undefined) {
+      config.hashValue = options.hashValue;
+    }
+
     const root = await store.getRoot();
     if (root === null) {
       throw new Error('Root does not exist in store');
     }
-    return new CSparseMerkleTree(store, root!, hasher);
+    return new CompactSparseMerkleTree(store, root, config);
   }
 
   /**
    * Get the root of the tree.
    *
    * @return {*}  {Field}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
   getRoot(): Field {
     return this.root;
@@ -80,7 +130,7 @@ export class CSparseMerkleTree<
    * Get the tree hasher used by the tree.
    *
    * @return {*}  {TreeHasher<K, V>}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
   getTreeHasher(): TreeHasher<K, V> {
     return this.th;
@@ -90,7 +140,7 @@ export class CSparseMerkleTree<
    * Get the data store of the tree.
    *
    * @return {*}  {Store<V>}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
   getStore(): Store<V> {
     return this.store;
@@ -101,7 +151,7 @@ export class CSparseMerkleTree<
    *
    * @param {Field} root
    * @return {*}  {Promise<void>}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
   async setRoot(root: Field): Promise<void> {
     this.store.clearPrepareOperationCache();
@@ -114,7 +164,7 @@ export class CSparseMerkleTree<
    * Get the depth of the tree.
    *
    * @return {*}  {number}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
   depth(): number {
     return SMT_DEPTH;
@@ -124,7 +174,7 @@ export class CSparseMerkleTree<
    * Clear the tree.
    *
    * @return {*}  {Promise<void>}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
   async clear(): Promise<void> {
     await this.store.clear();
@@ -135,14 +185,25 @@ export class CSparseMerkleTree<
    *
    * @param {K} key
    * @return {*}  {(Promise<V | null>)}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
   async get(key: K): Promise<V | null> {
-    if (this.root.equals(this.th.placeholder()).toBoolean()) {
+    if (this.root.equals(SMT_EMPTY_VALUE).toBoolean()) {
       throw new Error('Key does not exist');
     }
 
-    const path = this.th.path(key);
+    let path = null;
+    if (this.config.hashKey) {
+      path = this.th.path(key);
+    } else {
+      let keyFields = key.toFields();
+      if (keyFields.length > 1) {
+        throw new Error(
+          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
+        );
+      }
+      path = keyFields[0];
+    }
     return await this.store.getValue(path);
   }
 
@@ -151,7 +212,7 @@ export class CSparseMerkleTree<
    *
    * @param {K} key
    * @return {*}  {Promise<boolean>}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
   async has(key: K): Promise<boolean> {
     const v = await this.get(key);
@@ -168,7 +229,7 @@ export class CSparseMerkleTree<
    * @param {K} key
    * @param {V} [value]
    * @return {*}  {Promise<Field>}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
   async update(key: K, value?: V): Promise<Field> {
     this.store.clearPrepareOperationCache();
@@ -184,7 +245,7 @@ export class CSparseMerkleTree<
    *
    * @param {{ key: K; value?: V }[]} kvs
    * @return {*}  {Promise<Field>}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
   async updateAll(kvs: { key: K; value?: V }[]): Promise<Field> {
     this.store.clearPrepareOperationCache();
@@ -204,7 +265,7 @@ export class CSparseMerkleTree<
    *
    * @param {K} key
    * @return {*}  {Promise<Field>}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
   async delete(key: K): Promise<Field> {
     return this.update(key);
@@ -215,9 +276,9 @@ export class CSparseMerkleTree<
    *
    * @param {K} key
    * @return {*}  {Promise<CSparseMerkleProof>}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
-  async prove(key: K): Promise<CSparseMerkleProof> {
+  async prove(key: K): Promise<CompactSparseMerkleProof> {
     return await this.doProveForRoot(this.root, key, false);
   }
 
@@ -226,9 +287,9 @@ export class CSparseMerkleTree<
    *
    * @param {K} key
    * @return {*}  {Promise<CSparseMerkleProof>}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
-  async proveUpdatable(key: K): Promise<CSparseMerkleProof> {
+  async proveUpdatable(key: K): Promise<CompactSparseMerkleProof> {
     return await this.doProveForRoot(this.root, key, true);
   }
 
@@ -237,7 +298,7 @@ export class CSparseMerkleTree<
    *
    * @param {K} key
    * @return {*}  {Promise<CSparseCompactMerkleProof>}
-   * @memberof CSparseMerkleTree
+   * @memberof CompactSparseMerkleTree
    */
   async proveCompact(key: K): Promise<CSparseCompactMerkleProof> {
     return await this.proveCompactForRoot(this.root, key);
@@ -255,8 +316,19 @@ export class CSparseMerkleTree<
     root: Field,
     key: K,
     isUpdatable: boolean
-  ): Promise<CSparseMerkleProof> {
-    const path = this.th.path(key);
+  ): Promise<CompactSparseMerkleProof> {
+    let path = null;
+    if (this.config.hashKey) {
+      path = this.th.path(key);
+    } else {
+      let keyFields = key.toFields();
+      if (keyFields.length > 1) {
+        throw new Error(
+          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
+        );
+      }
+      path = keyFields[0];
+    }
 
     let {
       sideNodes,
@@ -267,7 +339,7 @@ export class CSparseMerkleTree<
 
     let nonMembershipLeafData = this.th.emptyData(); // set default empty data
 
-    if (pathNodes[0].equals(this.th.placeholder()).not().toBoolean()) {
+    if (pathNodes[0].equals(SMT_EMPTY_VALUE).not().toBoolean()) {
       const { path: actualPath } = this.th.parseLeaf(leafData!);
       if (actualPath.equals(path).not().toBoolean()) {
         nonMembershipLeafData = leafData!;
@@ -277,7 +349,7 @@ export class CSparseMerkleTree<
     if (siblingData === null) {
       siblingData = this.th.emptyData();
     }
-    return new CSparseMerkleProof(
+    return new CompactSparseMerkleProof(
       sideNodes,
       nonMembershipLeafData,
       siblingData,
@@ -286,7 +358,18 @@ export class CSparseMerkleTree<
   }
 
   private async updateForRoot(root: Field, key: K, value?: V): Promise<Field> {
-    const path = this.th.path(key);
+    let path = null;
+    if (this.config.hashKey) {
+      path = this.th.path(key);
+    } else {
+      let keyFields = key.toFields();
+      if (keyFields.length > 1) {
+        throw new Error(
+          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
+        );
+      }
+      path = keyFields[0];
+    }
 
     let {
       sideNodes,
@@ -333,10 +416,28 @@ export class CSparseMerkleTree<
     pathNodes: Field[],
     oldLeafData: Field[]
   ): Field {
-    const valueHash = this.th.digest(value);
+    let valueField = null;
+    if (this.config.hashValue) {
+      valueField = this.th.digest(value);
+    } else {
+      let valueFields = value.toFields();
+      if (valueFields.length > 1) {
+        throw new Error(
+          `The length of value fields is greater than 1, the value needs to be hashed before it can be processed, option 'hashValue' must be set to true`
+        );
+      }
+
+      valueField = valueFields[0];
+      if (valueField.equals(CP_PADD_VALUE).toBoolean()) {
+        throw new Error(
+          `Value cannot be a reserved value for padding: ${CP_PADD_VALUE}`
+        );
+      }
+    }
+
     let { hash: currentHash, value: currentData } = this.th.digestLeaf(
       path,
-      valueHash
+      valueField
     );
     this.store.preparePutNodes(currentHash, currentData);
 
@@ -346,7 +447,7 @@ export class CSparseMerkleTree<
     // in common as a prefix.
     let commonPrefixCount: number = 0;
     let oldValueHash: Field | null = null;
-    if (pathNodes[0].equals(this.th.placeholder()).toBoolean()) {
+    if (pathNodes[0].equals(SMT_EMPTY_VALUE).toBoolean()) {
       commonPrefixCount = this.depth();
     } else {
       let actualPath: Field;
@@ -373,7 +474,7 @@ export class CSparseMerkleTree<
 
       this.store.preparePutNodes(currentHash, currentData);
     } else if (oldValueHash !== null) {
-      if (oldValueHash.equals(valueHash).toBoolean()) {
+      if (oldValueHash.equals(valueField).toBoolean()) {
         return this.root;
       }
 
@@ -400,7 +501,7 @@ export class CSparseMerkleTree<
           commonPrefixCount != this.depth() &&
           commonPrefixCount > this.depth() - 1 - i
         ) {
-          sideNode = this.th.placeholder();
+          sideNode = SMT_EMPTY_VALUE;
         } else {
           continue;
         }
@@ -431,7 +532,7 @@ export class CSparseMerkleTree<
     pathNodes: Field[],
     oldLeafData: Field[]
   ): Promise<Field> {
-    if (pathNodes[0].equals(this.th.placeholder()).toBoolean()) {
+    if (pathNodes[0].equals(SMT_EMPTY_VALUE).toBoolean()) {
       throw new Error(ERR_KEY_ALREADY_EMPTY);
     }
 
@@ -445,7 +546,7 @@ export class CSparseMerkleTree<
       this.store.prepareDelNodes(node);
     });
 
-    let currentHash: Field = this.th.placeholder(); //set default value
+    let currentHash: Field = SMT_EMPTY_VALUE; //set default value
     let currentData: Field[] | null = null;
     let nonPlaceholderReached = false;
 
@@ -457,14 +558,14 @@ export class CSparseMerkleTree<
           continue;
         } else {
           // This is the node sibling that needs to be left in its place.
-          currentHash = this.th.placeholder();
+          currentHash = SMT_EMPTY_VALUE;
           nonPlaceholderReached = true;
         }
       }
 
       if (
         !nonPlaceholderReached &&
-        sideNodes[i].equals(this.th.placeholder()).toBoolean()
+        sideNodes[i].equals(SMT_EMPTY_VALUE).toBoolean()
       ) {
         continue;
       } else if (!nonPlaceholderReached) {
@@ -501,7 +602,7 @@ export class CSparseMerkleTree<
     let pathNodes: Field[] = [];
     pathNodes.push(root);
 
-    if (root.equals(this.th.placeholder()).toBoolean()) {
+    if (root.equals(SMT_EMPTY_VALUE).toBoolean()) {
       return {
         sideNodes,
         pathNodes,
@@ -538,7 +639,7 @@ export class CSparseMerkleTree<
       sideNodes.push(sideNode);
       pathNodes.push(nodeHash);
 
-      if (nodeHash.equals(this.th.placeholder()).toBoolean()) {
+      if (nodeHash.equals(SMT_EMPTY_VALUE).toBoolean()) {
         // reached the end.
         currentData = null;
         break;

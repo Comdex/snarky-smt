@@ -34,6 +34,7 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
   protected root: Field;
   protected store: Store<V>;
   protected hasher: Hasher;
+  protected config: { hashKey: boolean; hashValue: boolean };
 
   /**
    * Build a new sparse merkle tree
@@ -42,7 +43,11 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
    * @template K
    * @template V
    * @param {Store<V>} store
-   * @param {Hasher} [hasher=Poseidon.hash]
+   * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]
    * @return {*}  {Promise<SparseMerkleTree<K, V>>}
    * @memberof SparseMerkleTree
    */
@@ -51,8 +56,24 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     V extends FieldElements
   >(
     store: Store<V>,
-    hasher: Hasher = Poseidon.hash
+    options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
+      hasher: Poseidon.hash,
+      hashKey: true,
+      hashValue: true,
+    }
   ): Promise<SparseMerkleTree<K, V>> {
+    let hasher: Hasher = Poseidon.hash;
+    let config = { hashKey: true, hashValue: true };
+    if (options.hasher !== undefined) {
+      hasher = options.hasher;
+    }
+    if (options.hashKey !== undefined) {
+      config.hashKey = options.hashKey;
+    }
+    if (options.hashValue !== undefined) {
+      config.hashValue = options.hashValue;
+    }
+
     store.clearPrepareOperationCache();
     for (let i = 0; i < SMT_DEPTH; i++) {
       let keyNode = defaultNodes(hasher)[i];
@@ -65,7 +86,7 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     store.prepareUpdateRoot(root);
     await store.commit();
 
-    return new SparseMerkleTree(root, store, hasher);
+    return new SparseMerkleTree(root, store, hasher, config);
   }
 
   /**
@@ -75,7 +96,11 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
    * @template K
    * @template V
    * @param {Store<V>} store
-   * @param {Hasher} [hasher=Poseidon.hash]
+   * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]
    * @return {*}  {Promise<SparseMerkleTree<K, V>>}
    * @memberof SparseMerkleTree
    */
@@ -84,16 +109,38 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     V extends FieldElements
   >(
     store: Store<V>,
-    hasher: Hasher = Poseidon.hash
+    options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
+      hasher: Poseidon.hash,
+      hashKey: true,
+      hashValue: true,
+    }
   ): Promise<SparseMerkleTree<K, V>> {
+    let hasher: Hasher = Poseidon.hash;
+    let config = { hashKey: true, hashValue: true };
+    if (options.hasher !== undefined) {
+      hasher = options.hasher;
+    }
+    if (options.hashKey !== undefined) {
+      config.hashKey = options.hashKey;
+    }
+    if (options.hashValue !== undefined) {
+      config.hashValue = options.hashValue;
+    }
+
     const root: Field = await store.getRoot();
 
-    return new SparseMerkleTree(root, store, hasher);
+    return new SparseMerkleTree(root, store, hasher, config);
   }
 
-  private constructor(root: Field, store: Store<V>, hasher: Hasher) {
+  private constructor(
+    root: Field,
+    store: Store<V>,
+    hasher: Hasher,
+    config: { hashKey: boolean; hashValue: boolean }
+  ) {
     this.store = store;
     this.hasher = hasher;
+    this.config = config;
     this.root = root;
   }
 
@@ -173,7 +220,18 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
       return null;
     }
 
-    let path = this.digest(key.toFields());
+    let path = null;
+    if (this.config.hashKey) {
+      path = this.digest(key.toFields());
+    } else {
+      let fs = key.toFields();
+      if (fs.length > 1) {
+        throw new Error(
+          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
+        );
+      }
+      path = fs[0];
+    }
 
     try {
       const value = await this.store.getValue(path);
@@ -295,7 +353,19 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     key: K,
     value?: V
   ): Promise<Field> {
-    const path = this.digest(key.toFields());
+    let path = null;
+    if (this.config.hashKey) {
+      path = this.digest(key.toFields());
+    } else {
+      let fs = key.toFields();
+      if (fs.length > 1) {
+        throw new Error(
+          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
+        );
+      }
+      path = fs[0];
+    }
+
     const { sideNodes, pathNodes, leafData } = await this.sideNodesForRoot(
       root,
       path
@@ -320,7 +390,19 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
   ): Field {
     let currentHash: Field;
     if (value !== undefined) {
-      currentHash = this.digest(value.toFields());
+      if (this.config.hashValue) {
+        currentHash = this.digest(value.toFields());
+      } else {
+        let fs = value.toFields();
+        if (fs.length > 1) {
+          throw new Error(
+            `The length of value fields is greater than 1, the value needs to be hashed before it can be processed, option 'hashValue' must be set to true`
+          );
+        }
+
+        currentHash = fs[0];
+      }
+
       this.store.preparePutValue(path, value);
     } else {
       currentHash = SMT_EMPTY_VALUE;
@@ -399,7 +481,19 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     root: Field,
     key: K
   ): Promise<SparseMerkleProof> {
-    const path = this.digest(key.toFields());
+    let path = null;
+    if (this.config.hashKey) {
+      path = this.digest(key.toFields());
+    } else {
+      let fs = key.toFields();
+      if (fs.length > 1) {
+        throw new Error(
+          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
+        );
+      }
+      path = fs[0];
+    }
+
     const { sideNodes } = await this.sideNodesForRoot(root, path);
 
     return new SparseMerkleProof(sideNodes, root);
