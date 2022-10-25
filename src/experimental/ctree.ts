@@ -1,6 +1,7 @@
 import { Field, isReady, shutdown } from 'snarkyjs';
-import { CompactDeepSparseMerkleSubTree } from '../lib/compact_tree/deep_subtree';
-import { CompactSparseMerkleTree } from '../lib/compact_tree/smt';
+import { CompactDeepSparseMerkleSubTree } from '../lib/compact_smt/deep_subtree';
+import { CompactSparseMerkleTree } from '../lib/compact_smt/smt';
+import { ProvableCSMTUtils } from '../lib/compact_smt/verify_circuit';
 import { MemoryStore } from '../lib/store/memory_store';
 
 await isReady;
@@ -33,5 +34,12 @@ await subTree.addBranch(proof2, Field(3), Field(4));
 let root3 = await subTree.update(Field(1), Field(5));
 root3 = await subTree.update(Field(3), Field(7));
 console.log('root3: ', root3.toString());
+
+// let updateRoot = ProvableCSMTUtils.computeRoot(
+//   proof1.sideNodes,
+//   Field(1),
+//   Field(5)
+// );
+// console.log('updateRoot: ', updateRoot.toString());
 
 shutdown();

@@ -62,21 +62,21 @@ class TestZkapp extends SmartContract {
     //   Field,
     //   treeHeight
     // );
-    // tree.addBranch(proof1, value1);
-    // tree.addBranch(proof2, value2);
-    // tree.addBranch(proof3, value3);
+    tree.addBranch(proof1, value1);
+    tree.addBranch(proof2, value2);
+    tree.addBranch(proof3, value3);
 
-    tree.addBranch(proof1, Poseidon.hash([value1]));
-    tree.addBranch(proof2, Poseidon.hash([value2]));
-    tree.addBranch(proof3, Poseidon.hash([value3]));
+    // tree.addBranch(proof1, Poseidon.hash([value1]));
+    // tree.addBranch(proof2, Poseidon.hash([value2]));
+    // tree.addBranch(proof3, Poseidon.hash([value3]));
 
-    // let finalRoot = tree.update(proof1.path, Field(88));
-    // finalRoot = tree.update(proof2.path, Field(99));
-    // finalRoot = tree.update(proof3.path, Field(1010));
+    let finalRoot = tree.update(proof1.path, Field(88));
+    finalRoot = tree.update(proof2.path, Field(99));
+    finalRoot = tree.update(proof3.path, Field(1010));
 
-    let finalRoot = tree.update(proof1.path, Poseidon.hash([Field(88)]));
-    finalRoot = tree.update(proof2.path, Poseidon.hash([Field(99)]));
-    finalRoot = tree.update(proof3.path, Poseidon.hash([Field(1010)]));
+    // let finalRoot = tree.update(proof1.path, Poseidon.hash([Field(88)]));
+    // finalRoot = tree.update(proof2.path, Poseidon.hash([Field(99)]));
+    // finalRoot = tree.update(proof3.path, Poseidon.hash([Field(1010)]));
 
     Circuit.asProver(() => {
       console.log('finalRoot by field: ', finalRoot.toString());

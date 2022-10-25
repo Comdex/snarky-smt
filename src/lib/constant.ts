@@ -5,6 +5,3 @@ export const SMT_EMPTY_VALUE = Field.zero;
 export const RIGHT = true;
 export const LEFT = false;
 export const ERR_KEY_ALREADY_EMPTY = 'Key already empty';
-
-// compact sparse merkle tree
-export const CP_PADD_VALUE = Field.one;

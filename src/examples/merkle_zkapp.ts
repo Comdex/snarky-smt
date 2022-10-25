@@ -27,14 +27,10 @@ import {
   AccountUpdate,
   CircuitString,
 } from 'snarkyjs';
-import { SMT_EMPTY_VALUE } from '../lib/constant';
 import { SparseMerkleProof } from '../lib/proofs';
 import { SparseMerkleTree } from '../lib/smt';
 import { MemoryStore } from '../lib/store/memory_store';
-import {
-  computeRootInCircuit,
-  verifyProofInCircuit,
-} from '../lib/verify_circuit';
+import { ProvableSMTUtils } from '../lib/verify_circuit';
 
 await isReady;
 
@@ -48,10 +44,6 @@ class Account extends CircuitValue {
     super(publicKey, points);
     this.publicKey = publicKey;
     this.points = points;
-  }
-
-  hash(): Field {
-    return Poseidon.hash(this.toFields());
   }
 
   addPoints(n: number): Account {
@@ -94,21 +86,19 @@ class Leaderboard extends SmartContract {
     this.commitment.assertEquals(commitment);
 
     // We need to prove that the account is not in Merkle Tree.
-    const keyHash = Poseidon.hash(name.toFields());
-    const emptyHash = SMT_EMPTY_VALUE;
-    verifyProofInCircuit(
+    ProvableSMTUtils.checkNonMembership(
       merkleProof,
       commitment,
-      keyHash,
-      emptyHash
+      name
     ).assertTrue();
 
     // add new account
-    let newCommitment = computeRootInCircuit(
+    let newCommitment = ProvableSMTUtils.computeRoot(
       merkleProof.sideNodes,
-      keyHash,
-      account.hash()
+      name,
+      account
     );
+
     this.commitment.set(newCommitment);
   }
 
@@ -132,23 +122,21 @@ class Leaderboard extends SmartContract {
     this.commitment.assertEquals(commitment);
 
     // we check that the account is within the committed Merkle Tree
-    const keyHash = Poseidon.hash(name.toFields());
-    const valueHash = account.hash();
-    verifyProofInCircuit(
+    ProvableSMTUtils.checkMembership(
       merkleProof,
       commitment,
-      keyHash,
-      valueHash
+      name,
+      account
     ).assertTrue();
 
     // we update the account and grant one point!
     let newAccount = account.addPoints(1);
 
     // we calculate the new Merkle Root, based on the account changes
-    let newCommitment = computeRootInCircuit(
+    let newCommitment = ProvableSMTUtils.computeRoot(
       merkleProof.sideNodes,
-      keyHash,
-      newAccount.hash()
+      name,
+      newAccount
     );
 
     this.commitment.set(newCommitment);

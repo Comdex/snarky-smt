@@ -346,7 +346,7 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
       );
     }
 
-    const path = new Field(key);
+    const path = Field(key);
     const { sideNodes, pathNodes, leafData } = await this.sideNodesForRoot(
       root,
       path
@@ -370,18 +370,20 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
     value?: V
   ): Field {
     let currentHash: Field;
+
     if (value !== undefined) {
+      const valueFields = value.toFields();
+
       if (this.hashValue) {
-        currentHash = this.digest(value.toFields());
+        currentHash = this.digest(valueFields);
       } else {
-        let fs = value.toFields();
-        if (fs.length > 1) {
+        if (valueFields.length > 1) {
           throw new Error(
             `The length of value fields is greater than 1, the value needs to be hashed before it can be processed, option 'hashValue' must be set to true`
           );
         }
 
-        currentHash = fs[0];
+        currentHash = valueFields[0];
       }
       this.store.preparePutValue(path, value);
     } else {

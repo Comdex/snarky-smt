@@ -3,9 +3,9 @@ import {
   CP_PADD_VALUE,
   ERR_KEY_ALREADY_EMPTY,
   RIGHT,
-  SMT_DEPTH,
-  SMT_EMPTY_VALUE,
-} from '../constant';
+  CSMT_DEPTH,
+  PLACEHOLDER,
+} from './constant';
 import { FieldElements } from '../model';
 import { Hasher } from '../proofs';
 import { Store } from '../store/store';
@@ -74,7 +74,7 @@ class CompactSparseMerkleTree<
     if (root) {
       this.root = root;
     } else {
-      this.root = SMT_EMPTY_VALUE;
+      this.root = PLACEHOLDER;
     }
   }
 
@@ -85,7 +85,11 @@ class CompactSparseMerkleTree<
    * @template K
    * @template V
    * @param {Store<V>} store
-   * @param {Hasher} [hasher=Poseidon.hash]
+   * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]
    * @return {*}  {Promise<CompactSparseMerkleTree<K, V>>}
    * @memberof CompactSparseMerkleTree
    */
@@ -116,13 +120,30 @@ class CompactSparseMerkleTree<
     return new CompactSparseMerkleTree(store, root, config);
   }
 
+  protected getKeyField(key: K): Field {
+    let keyField = null;
+    if (this.config.hashKey) {
+      keyField = this.th.path(key);
+    } else {
+      let keyFields = key.toFields();
+      if (keyFields.length > 1) {
+        throw new Error(
+          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
+        );
+      }
+      keyField = keyFields[0];
+    }
+
+    return keyField;
+  }
+
   /**
    * Get the root of the tree.
    *
    * @return {*}  {Field}
    * @memberof CompactSparseMerkleTree
    */
-  getRoot(): Field {
+  public getRoot(): Field {
     return this.root;
   }
 
@@ -132,7 +153,7 @@ class CompactSparseMerkleTree<
    * @return {*}  {TreeHasher<K, V>}
    * @memberof CompactSparseMerkleTree
    */
-  getTreeHasher(): TreeHasher<K, V> {
+  public getTreeHasher(): TreeHasher<K, V> {
     return this.th;
   }
 
@@ -142,7 +163,7 @@ class CompactSparseMerkleTree<
    * @return {*}  {Store<V>}
    * @memberof CompactSparseMerkleTree
    */
-  getStore(): Store<V> {
+  public getStore(): Store<V> {
     return this.store;
   }
 
@@ -153,7 +174,7 @@ class CompactSparseMerkleTree<
    * @return {*}  {Promise<void>}
    * @memberof CompactSparseMerkleTree
    */
-  async setRoot(root: Field): Promise<void> {
+  public async setRoot(root: Field): Promise<void> {
     this.store.clearPrepareOperationCache();
     this.store.prepareUpdateRoot(root);
     await this.store.commit();
@@ -166,8 +187,8 @@ class CompactSparseMerkleTree<
    * @return {*}  {number}
    * @memberof CompactSparseMerkleTree
    */
-  depth(): number {
-    return SMT_DEPTH;
+  public depth(): number {
+    return CSMT_DEPTH;
   }
 
   /**
@@ -176,7 +197,7 @@ class CompactSparseMerkleTree<
    * @return {*}  {Promise<void>}
    * @memberof CompactSparseMerkleTree
    */
-  async clear(): Promise<void> {
+  public async clear(): Promise<void> {
     await this.store.clear();
   }
 
@@ -187,23 +208,12 @@ class CompactSparseMerkleTree<
    * @return {*}  {(Promise<V | null>)}
    * @memberof CompactSparseMerkleTree
    */
-  async get(key: K): Promise<V | null> {
-    if (this.root.equals(SMT_EMPTY_VALUE).toBoolean()) {
+  public async get(key: K): Promise<V | null> {
+    if (this.root.equals(PLACEHOLDER).toBoolean()) {
       throw new Error('Key does not exist');
     }
 
-    let path = null;
-    if (this.config.hashKey) {
-      path = this.th.path(key);
-    } else {
-      let keyFields = key.toFields();
-      if (keyFields.length > 1) {
-        throw new Error(
-          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
-        );
-      }
-      path = keyFields[0];
-    }
+    const path = this.getKeyField(key);
     return await this.store.getValue(path);
   }
 
@@ -317,18 +327,7 @@ class CompactSparseMerkleTree<
     key: K,
     isUpdatable: boolean
   ): Promise<CompactSparseMerkleProof> {
-    let path = null;
-    if (this.config.hashKey) {
-      path = this.th.path(key);
-    } else {
-      let keyFields = key.toFields();
-      if (keyFields.length > 1) {
-        throw new Error(
-          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
-        );
-      }
-      path = keyFields[0];
-    }
+    const path = this.getKeyField(key);
 
     let {
       sideNodes,
@@ -339,7 +338,7 @@ class CompactSparseMerkleTree<
 
     let nonMembershipLeafData = this.th.emptyData(); // set default empty data
 
-    if (pathNodes[0].equals(SMT_EMPTY_VALUE).not().toBoolean()) {
+    if (pathNodes[0].equals(PLACEHOLDER).not().toBoolean()) {
       const { path: actualPath } = this.th.parseLeaf(leafData!);
       if (actualPath.equals(path).not().toBoolean()) {
         nonMembershipLeafData = leafData!;
@@ -358,18 +357,7 @@ class CompactSparseMerkleTree<
   }
 
   private async updateForRoot(root: Field, key: K, value?: V): Promise<Field> {
-    let path = null;
-    if (this.config.hashKey) {
-      path = this.th.path(key);
-    } else {
-      let keyFields = key.toFields();
-      if (keyFields.length > 1) {
-        throw new Error(
-          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
-        );
-      }
-      path = keyFields[0];
-    }
+    const path = this.getKeyField(key);
 
     let {
       sideNodes,
@@ -430,7 +418,7 @@ class CompactSparseMerkleTree<
       valueField = valueFields[0];
       if (valueField.equals(CP_PADD_VALUE).toBoolean()) {
         throw new Error(
-          `Value cannot be a reserved value for padding: ${CP_PADD_VALUE}`
+          `Value cannot be a reserved value for padding: ${CP_PADD_VALUE.toString()}`
         );
       }
     }
@@ -447,7 +435,7 @@ class CompactSparseMerkleTree<
     // in common as a prefix.
     let commonPrefixCount: number = 0;
     let oldValueHash: Field | null = null;
-    if (pathNodes[0].equals(SMT_EMPTY_VALUE).toBoolean()) {
+    if (pathNodes[0].equals(PLACEHOLDER).toBoolean()) {
       commonPrefixCount = this.depth();
     } else {
       let actualPath: Field;
@@ -501,7 +489,7 @@ class CompactSparseMerkleTree<
           commonPrefixCount != this.depth() &&
           commonPrefixCount > this.depth() - 1 - i
         ) {
-          sideNode = SMT_EMPTY_VALUE;
+          sideNode = PLACEHOLDER;
         } else {
           continue;
         }
@@ -532,7 +520,7 @@ class CompactSparseMerkleTree<
     pathNodes: Field[],
     oldLeafData: Field[]
   ): Promise<Field> {
-    if (pathNodes[0].equals(SMT_EMPTY_VALUE).toBoolean()) {
+    if (pathNodes[0].equals(PLACEHOLDER).toBoolean()) {
       throw new Error(ERR_KEY_ALREADY_EMPTY);
     }
 
@@ -546,7 +534,7 @@ class CompactSparseMerkleTree<
       this.store.prepareDelNodes(node);
     });
 
-    let currentHash: Field = SMT_EMPTY_VALUE; //set default value
+    let currentHash: Field = PLACEHOLDER; //set default value
     let currentData: Field[] | null = null;
     let nonPlaceholderReached = false;
 
@@ -558,14 +546,14 @@ class CompactSparseMerkleTree<
           continue;
         } else {
           // This is the node sibling that needs to be left in its place.
-          currentHash = SMT_EMPTY_VALUE;
+          currentHash = PLACEHOLDER;
           nonPlaceholderReached = true;
         }
       }
 
       if (
         !nonPlaceholderReached &&
-        sideNodes[i].equals(SMT_EMPTY_VALUE).toBoolean()
+        sideNodes[i].equals(PLACEHOLDER).toBoolean()
       ) {
         continue;
       } else if (!nonPlaceholderReached) {
@@ -602,7 +590,7 @@ class CompactSparseMerkleTree<
     let pathNodes: Field[] = [];
     pathNodes.push(root);
 
-    if (root.equals(SMT_EMPTY_VALUE).toBoolean()) {
+    if (root.equals(PLACEHOLDER).toBoolean()) {
       return {
         sideNodes,
         pathNodes,
@@ -639,7 +627,7 @@ class CompactSparseMerkleTree<
       sideNodes.push(sideNode);
       pathNodes.push(nodeHash);
 
-      if (nodeHash.equals(SMT_EMPTY_VALUE).toBoolean()) {
+      if (nodeHash.equals(PLACEHOLDER).toBoolean()) {
         // reached the end.
         currentData = null;
         break;

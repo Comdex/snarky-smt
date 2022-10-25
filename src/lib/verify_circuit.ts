@@ -1,26 +1,98 @@
 import { Bool, Circuit, Field, Poseidon } from 'snarkyjs';
 import { SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
+import { FieldElements } from './model';
 import { Hasher, SparseMerkleProof } from './proofs';
 
-export {
-  verifyProofInCircuit,
-  computeRootInCircuit,
-  checkNonMembershipInCircuit,
-};
+export { ProvableSMTUtils };
 
-function checkNonMembershipInCircuit(
-  proof: SparseMerkleProof,
-  expectedRoot: Field,
-  keyHashOrKeyField: Field,
-  hasher: Hasher = Poseidon.hash
-) {
-  return verifyProofInCircuit(
-    proof,
-    expectedRoot,
-    keyHashOrKeyField,
-    SMT_EMPTY_VALUE,
-    hasher
-  );
+class ProvableSMTUtils {
+  static SMT_EMPTY_VALUE = SMT_EMPTY_VALUE;
+  static verifyProofByField = verifyProofInCircuit;
+  static computeRootByField = computeRootInCircuit;
+
+  static checkMembership<K extends FieldElements, V extends FieldElements>(
+    proof: SparseMerkleProof,
+    expectedRoot: Field,
+    key: K,
+    value: V,
+    options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
+      hasher: Poseidon.hash,
+      hashKey: true,
+      hashValue: true,
+    }
+  ): Bool {
+    let keyFields = key.toFields();
+    let valueFields = value.toFields();
+    let keyHashOrKeyField = keyFields[0];
+    if (options.hashKey) {
+      keyHashOrKeyField = options.hasher(keyFields);
+    }
+    let valueHashOrValueField = valueFields[0];
+    if (options.hashValue) {
+      valueHashOrValueField = options.hasher(valueFields);
+    }
+
+    return verifyProofInCircuit(
+      proof,
+      expectedRoot,
+      keyHashOrKeyField,
+      valueHashOrValueField,
+      options.hasher
+    );
+  }
+
+  static checkNonMembership<K extends FieldElements>(
+    proof: SparseMerkleProof,
+    expectedRoot: Field,
+    key: K,
+    options: { hasher: Hasher; hashKey: boolean } = {
+      hasher: Poseidon.hash,
+      hashKey: true,
+    }
+  ): Bool {
+    let keyFields = key.toFields();
+    let keyHashOrKeyField = keyFields[0];
+    if (options.hashKey) {
+      keyHashOrKeyField = options.hasher(keyFields);
+    }
+
+    return verifyProofInCircuit(
+      proof,
+      expectedRoot,
+      keyHashOrKeyField,
+      SMT_EMPTY_VALUE,
+      options.hasher
+    );
+  }
+
+  static computeRoot<K extends FieldElements, V extends FieldElements>(
+    sideNodes: Field[],
+    key: K,
+    value: V,
+    options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
+      hasher: Poseidon.hash,
+      hashKey: true,
+      hashValue: true,
+    }
+  ): Field {
+    let keyFields = key.toFields();
+    let valueFields = value.toFields();
+    let keyHashOrKeyField = keyFields[0];
+    if (options.hashKey) {
+      keyHashOrKeyField = options.hasher(keyFields);
+    }
+    let valueHashOrValueField = valueFields[0];
+    if (options.hashValue) {
+      valueHashOrValueField = options.hasher(valueFields);
+    }
+
+    return computeRootInCircuit(
+      sideNodes,
+      keyHashOrKeyField,
+      valueHashOrValueField,
+      options.hasher
+    );
+  }
 }
 
 /**

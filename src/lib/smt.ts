@@ -144,6 +144,22 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     this.root = root;
   }
 
+  private getKeyField(key: K): Field {
+    let keyFields = key.toFields();
+    let keyHashOrKeyField = keyFields[0];
+    if (this.config.hashKey) {
+      keyHashOrKeyField = this.digest(keyFields);
+    } else {
+      if (keyFields.length > 1) {
+        throw new Error(
+          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
+        );
+      }
+    }
+
+    return keyHashOrKeyField;
+  }
+
   /**
    * Get the root of the tree.
    *
@@ -220,18 +236,7 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
       return null;
     }
 
-    let path = null;
-    if (this.config.hashKey) {
-      path = this.digest(key.toFields());
-    } else {
-      let fs = key.toFields();
-      if (fs.length > 1) {
-        throw new Error(
-          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
-        );
-      }
-      path = fs[0];
-    }
+    let path = this.getKeyField(key);
 
     try {
       const value = await this.store.getValue(path);
@@ -353,18 +358,7 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     key: K,
     value?: V
   ): Promise<Field> {
-    let path = null;
-    if (this.config.hashKey) {
-      path = this.digest(key.toFields());
-    } else {
-      let fs = key.toFields();
-      if (fs.length > 1) {
-        throw new Error(
-          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
-        );
-      }
-      path = fs[0];
-    }
+    let path = this.getKeyField(key);
 
     const { sideNodes, pathNodes, leafData } = await this.sideNodesForRoot(
       root,
@@ -390,17 +384,18 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
   ): Field {
     let currentHash: Field;
     if (value !== undefined) {
+      const valueFields = value.toFields();
+
       if (this.config.hashValue) {
-        currentHash = this.digest(value.toFields());
+        currentHash = this.digest(valueFields);
       } else {
-        let fs = value.toFields();
-        if (fs.length > 1) {
+        if (valueFields.length > 1) {
           throw new Error(
             `The length of value fields is greater than 1, the value needs to be hashed before it can be processed, option 'hashValue' must be set to true`
           );
         }
 
-        currentHash = fs[0];
+        currentHash = valueFields[0];
       }
 
       this.store.preparePutValue(path, value);
@@ -481,18 +476,7 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     root: Field,
     key: K
   ): Promise<SparseMerkleProof> {
-    let path = null;
-    if (this.config.hashKey) {
-      path = this.digest(key.toFields());
-    } else {
-      let fs = key.toFields();
-      if (fs.length > 1) {
-        throw new Error(
-          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
-        );
-      }
-      path = fs[0];
-    }
+    let path = this.getKeyField(key);
 
     const { sideNodes } = await this.sideNodesForRoot(root, path);
 

@@ -44,10 +44,9 @@ export {
 export type { Store } from './lib/store/store';
 export { MemoryStore } from './lib/store/memory_store';
 export { LevelStore } from './lib/store/level_store';
-export { SMT_EMPTY_VALUE } from './lib/constant';
 
-export { CompactSparseMerkleTree } from './lib/compact_tree/smt';
-export { CompactDeepSparseMerkleSubTree } from './lib/compact_tree/deep_subtree';
-export * from './lib/compact_tree/proofs';
-export * from './lib/compact_tree/verify_circuit';
-export { TreeHasher } from './lib/compact_tree/tree_hasher';
+export { CompactSparseMerkleTree } from './lib/compact_smt/smt';
+export { CompactDeepSparseMerkleSubTree } from './lib/compact_smt/deep_subtree';
+export * from './lib/compact_smt/proofs';
+export * from './lib/compact_smt/verify_circuit';
+export { TreeHasher } from './lib/compact_smt/tree_hasher';

@@ -7,7 +7,7 @@ import {
   Poseidon,
   prop,
 } from 'snarkyjs';
-import { CP_PADD_VALUE, RIGHT, SMT_DEPTH, SMT_EMPTY_VALUE } from '../constant';
+import { CP_PADD_VALUE, RIGHT, CSMT_DEPTH, PLACEHOLDER } from './constant';
 import { FieldElements } from '../model';
 import { Hasher } from '../proofs';
 import { TreeHasher } from './tree_hasher';
@@ -32,7 +32,7 @@ export type { CSparseCompactMerkleProof };
  * @extends {CircuitValue}
  */
 class CompactSparseMerkleProof extends CircuitValue {
-  @arrayProp(Field, SMT_DEPTH) sideNodes: Field[];
+  @arrayProp(Field, CSMT_DEPTH) sideNodes: Field[];
   @arrayProp(Field, 3) nonMembershipLeafData: Field[];
   @arrayProp(Field, 3) siblingData: Field[];
   @prop root: Field;
@@ -45,14 +45,14 @@ class CompactSparseMerkleProof extends CircuitValue {
   ) {
     super();
     let len = sideNodes.length;
-    if (len > SMT_DEPTH) {
+    if (len > CSMT_DEPTH) {
       throw new Error(
-        `The length of sideNodes cannot be greater than ${SMT_DEPTH}`
+        `The length of sideNodes cannot be greater than ${CSMT_DEPTH}`
       );
     }
 
     // padd with CP_PADD_VALUE to a fixed length
-    sideNodes = sideNodes.concat(Array(SMT_DEPTH - len).fill(CP_PADD_VALUE));
+    sideNodes = sideNodes.concat(Array(CSMT_DEPTH - len).fill(CP_PADD_VALUE));
 
     this.sideNodes = sideNodes;
     this.nonMembershipLeafData = nonMembershipLeafData;
@@ -146,7 +146,7 @@ function c_verifyProofWithUpdates<
   if (value === undefined) {
     //Non-membership proof
     if (th.isEmptyData(proof.nonMembershipLeafData)) {
-      currentHash = SMT_EMPTY_VALUE;
+      currentHash = PLACEHOLDER;
     } else {
       const { path: actualPath, leaf: valueField } = th.parseLeaf(
         proof.nonMembershipLeafData
@@ -198,7 +198,7 @@ function c_verifyProofWithUpdates<
     realSideNodesLength++;
   }
 
-  const pathBits = path.toBits(SMT_DEPTH);
+  const pathBits = path.toBits(CSMT_DEPTH);
   //Recompute root
   for (let i = 0; i < realSideNodesLength; i++) {
     let node = proof.sideNodes[i];
@@ -279,7 +279,7 @@ function c_compactProof(
 ): CSparseCompactMerkleProof {
   const sideNodes = proof.sideNodes;
   const sideNodesLength = sideNodes.length;
-  let bits = Array<Bool>(SMT_DEPTH).fill(Bool(false));
+  let bits = Array<Bool>(CSMT_DEPTH).fill(Bool(false));
 
   let compactedSideNodes = [];
   let oriSideNodesLength = 0;
@@ -289,7 +289,7 @@ function c_compactProof(
     }
 
     oriSideNodesLength++;
-    if (sideNodes[i].equals(SMT_EMPTY_VALUE).toBoolean()) {
+    if (sideNodes[i].equals(PLACEHOLDER).toBoolean()) {
       bits[i] = Bool(true);
     } else {
       compactedSideNodes.push(sideNodes[i]);
@@ -324,7 +324,7 @@ function c_decompactProof(
   const bits = proof.bitMask.toBits();
   for (let i = 0; i < proof.numSideNodes; i++) {
     if (bits[i].toBoolean()) {
-      decompactedSideNodes[i] = SMT_EMPTY_VALUE;
+      decompactedSideNodes[i] = PLACEHOLDER;
     } else {
       decompactedSideNodes[i] = proof.sideNodes[position];
       position++;

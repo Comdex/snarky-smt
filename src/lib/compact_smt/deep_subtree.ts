@@ -32,7 +32,7 @@ class CompactDeepSparseMerkleSubTree<
     super(store, root, options);
   }
 
-  async addBranch(proof: CompactSparseMerkleProof, key: K, value: V) {
+  async addBranch(proof: CompactSparseMerkleProof, key: K, value?: V) {
     const { ok, updates } = c_verifyProofWithUpdates(
       proof,
       this.getRoot(),
@@ -49,18 +49,17 @@ class CompactDeepSparseMerkleSubTree<
     }
 
     if (value !== undefined) {
-      //membership proof
       let path = null;
       if (this.config.hashKey) {
         path = this.th.path(key);
       } else {
-        let fs = key.toFields();
-        if (fs.length > 1) {
+        let keyFields = key.toFields();
+        if (keyFields.length > 1) {
           throw new Error(
             `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
           );
         }
-        path = fs[0];
+        path = keyFields[0];
       }
       this.store.preparePutValue(path, value);
     }

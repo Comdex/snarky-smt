@@ -6,7 +6,8 @@ import {
   Field,
   Poseidon,
 } from 'snarkyjs';
-import { SMT_DEPTH } from './constant';
+import { SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
+import { FieldElements } from './model';
 import {
   BaseNumIndexSparseMerkleProof,
   getUpdatesBySideNodes,
@@ -29,17 +30,29 @@ class SMTSideNodes extends CircuitValue {
   }
 }
 
-class ProvableDeepSparseMerkleSubTree {
+class ProvableDeepSparseMerkleSubTree<
+  K extends FieldElements,
+  V extends FieldElements
+> {
   private nodeStore: Map<string, Field[]>;
   private valueStore: Map<string, Field>;
   private root: Field;
   private hasher: Hasher;
+  private config: { hashKey: boolean; hashValue: boolean };
 
-  constructor(root: Field, hasher: Hasher = Poseidon.hash) {
+  constructor(
+    root: Field,
+    options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
+      hasher: Poseidon.hash,
+      hashKey: true,
+      hashValue: true,
+    }
+  ) {
     this.root = root;
     this.nodeStore = new Map<string, Field[]>();
     this.valueStore = new Map<string, Field>();
-    this.hasher = hasher;
+    this.hasher = options.hasher;
+    this.config = { hashKey: options.hashKey, hashValue: options.hashValue };
   }
 
   public getRoot(): Field {
@@ -50,16 +63,36 @@ class ProvableDeepSparseMerkleSubTree {
     return SMT_DEPTH;
   }
 
-  public addBranch(
-    proof: SparseMerkleProof,
-    keyHashOrKeyField: Field,
-    valueHashOrValueField: Field
-  ) {
+  private getKeyField(key: K): Field {
+    let keyFields = key.toFields();
+    let keyHashOrKeyField = keyFields[0];
+    if (this.config.hashKey) {
+      keyHashOrKeyField = this.hasher(keyFields);
+    }
+
+    return keyHashOrKeyField;
+  }
+
+  private getValueField(value?: V): Field {
+    let valueHashOrValueField = SMT_EMPTY_VALUE;
+    if (value) {
+      let valueFields = value.toFields();
+      let valueHashOrValueField = valueFields[0];
+      if (this.config.hashValue) {
+        valueHashOrValueField = this.hasher(valueFields);
+      }
+    }
+    return valueHashOrValueField;
+  }
+
+  public addBranch(proof: SparseMerkleProof, key: K, value?: V) {
     Circuit.asProver(() => {
+      const keyField = this.getKeyField(key);
+      const valueField = this.getValueField(value);
       let updates = getUpdatesBySideNodes(
         proof.sideNodes,
-        keyHashOrKeyField,
-        valueHashOrValueField,
+        keyField,
+        valueField,
         SMT_DEPTH,
         this.hasher
       );
@@ -69,20 +102,21 @@ class ProvableDeepSparseMerkleSubTree {
         this.nodeStore.set(v[0].toString(), v[1]);
       }
 
-      this.valueStore.set(keyHashOrKeyField.toString(), valueHashOrValueField);
+      this.valueStore.set(keyField.toString(), valueField);
     });
   }
 
-  public prove(keyHashOrKeyField: Field): SparseMerkleProof {
+  public prove(key: K): SparseMerkleProof {
     return Circuit.witness(BaseNumIndexSparseMerkleProof, () => {
-      let pathStr = keyHashOrKeyField.toString();
+      const keyField = this.getKeyField(key);
+      let pathStr = keyField.toString();
       let valueHash = this.valueStore.get(pathStr);
       if (valueHash === undefined) {
         throw new Error(
           `The DeepSubTree does not contain a branch of the path: ${pathStr}`
         );
       }
-      const pathBits = keyHashOrKeyField.toBits(this.getHeight());
+      const pathBits = keyField.toBits(this.getHeight());
       let sideNodes: Field[] = [];
       let nodeHash: Field = this.root;
       for (let i = 0, h = this.getHeight(); i < h; i++) {
@@ -106,8 +140,10 @@ class ProvableDeepSparseMerkleSubTree {
     });
   }
 
-  public update(keyHashOrKeyField: Field, valueHashOrValueField: Field): Field {
-    const path = keyHashOrKeyField;
+  public update(key: K, value?: V): Field {
+    const path = this.getKeyField(key);
+    const valueField = this.getValueField(value);
+
     const treeHeight = this.getHeight();
     const pathBits = path.toBits(treeHeight);
 
@@ -149,7 +185,7 @@ class ProvableDeepSparseMerkleSubTree {
       this.root
     );
 
-    let currentHash = valueHashOrValueField;
+    let currentHash = valueField;
 
     Circuit.asProver(() => {
       this.nodeStore.set(currentHash.toString(), [currentHash]);
@@ -172,7 +208,7 @@ class ProvableDeepSparseMerkleSubTree {
     }
 
     Circuit.asProver(() => {
-      this.valueStore.set(path.toString(), valueHashOrValueField);
+      this.valueStore.set(path.toString(), valueField);
     });
     this.root = currentHash;
 
@@ -180,19 +216,41 @@ class ProvableDeepSparseMerkleSubTree {
   }
 }
 
-class ProvableNumIndexDeepSparseMerkleSubTree {
+class ProvableNumIndexDeepSparseMerkleSubTree<V extends FieldElements> {
   private nodeStore: Map<string, Field[]>;
   private valueStore: Map<string, Field>;
   private root: Field;
-  private hasher: Hasher;
   private height: number;
+  private hasher: Hasher;
+  private hashValue: boolean;
 
-  constructor(root: Field, height: number, hasher: Hasher = Poseidon.hash) {
+  constructor(
+    root: Field,
+    height: number,
+    options: { hasher: Hasher; hashValue: boolean } = {
+      hasher: Poseidon.hash,
+      hashValue: true,
+    }
+  ) {
     this.root = root;
     this.nodeStore = new Map<string, Field[]>();
     this.valueStore = new Map<string, Field>();
     this.height = height;
-    this.hasher = hasher;
+    this.hasher = options.hasher;
+    this.hashValue = options.hashValue;
+  }
+
+  private getValueField(value?: V): Field {
+    let valueHashOrValueField = SMT_EMPTY_VALUE;
+    if (value) {
+      let valueFields = value.toFields();
+      let valueHashOrValueField = valueFields[0];
+      if (this.hashValue) {
+        valueHashOrValueField = this.hasher(valueFields);
+      }
+    }
+
+    return valueHashOrValueField;
   }
 
   public getRoot(): Field {
@@ -203,17 +261,15 @@ class ProvableNumIndexDeepSparseMerkleSubTree {
     return this.height;
   }
 
-  public addBranch(
-    proof: BaseNumIndexSparseMerkleProof,
-    valueHashOrValueField: Field
-  ) {
+  public addBranch(proof: BaseNumIndexSparseMerkleProof, value?: V) {
     Circuit.asProver(() => {
-      const keyHash = proof.path;
+      const keyField = proof.path;
+      const valueField = this.getValueField(value);
 
       let updates = getUpdatesBySideNodes(
         proof.sideNodes,
-        keyHash,
-        valueHashOrValueField,
+        keyField,
+        valueField,
         this.height,
         this.hasher
       );
@@ -223,7 +279,7 @@ class ProvableNumIndexDeepSparseMerkleSubTree {
         this.nodeStore.set(v[0].toString(), v[1]);
       }
 
-      this.valueStore.set(keyHash.toString(), valueHashOrValueField);
+      this.valueStore.set(keyField.toString(), valueField);
     });
   }
 
@@ -268,8 +324,10 @@ class ProvableNumIndexDeepSparseMerkleSubTree {
     });
   }
 
-  public update(path: Field, valueHashOrValueField: Field): Field {
+  public update(path: Field, value?: V): Field {
     const pathBits = path.toBits(this.height);
+    const valueField = this.getValueField(value);
+
     class SideNodes extends CircuitValue {
       @arrayProp(Field, this.height) arr: Field[];
       constructor(arr: Field[]) {
@@ -316,7 +374,7 @@ class ProvableNumIndexDeepSparseMerkleSubTree {
       this.height
     ).assertEquals(this.root);
 
-    let currentHash = valueHashOrValueField;
+    let currentHash = valueField;
 
     Circuit.asProver(() => {
       this.nodeStore.set(currentHash.toString(), [currentHash]);
@@ -339,7 +397,7 @@ class ProvableNumIndexDeepSparseMerkleSubTree {
     }
 
     Circuit.asProver(() => {
-      this.valueStore.set(path.toString(), valueHashOrValueField);
+      this.valueStore.set(path.toString(), valueField);
     });
 
     this.root = currentHash;

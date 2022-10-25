@@ -43,15 +43,15 @@ deepSubTree.addBranch(proof1, Poseidon.hash([value1]));
 deepSubTree.addBranch(proof2, Poseidon.hash([value2]));
 deepSubTree.addBranch(proof3, Poseidon.hash([value3]));
 
-let finalRoot = deepSubTree.update(proof1.path, Poseidon.hash([Field(88)]));
-let proofTemp = deepSubTree.prove(proof2.path);
+let finalRoot = deepSubTree.update(key1, Poseidon.hash([Field(88)]));
+let proofTemp = deepSubTree.prove(key2);
 let tempOk = proofTemp.verify(finalRoot, value2);
 console.log('tempOk: ', tempOk);
 
 // let proofTemp2 = deepSubTree.prove(Field(10));
 
-finalRoot = deepSubTree.update(proof2.path, Poseidon.hash([Field(99)]));
-finalRoot = deepSubTree.update(proof3.path, Poseidon.hash([Field(1010)]));
+finalRoot = deepSubTree.update(key2, Poseidon.hash([Field(99)]));
+finalRoot = deepSubTree.update(key3, Poseidon.hash([Field(1010)]));
 
 console.log('final root: ', finalRoot.toString());
 shutdown();
