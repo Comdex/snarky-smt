@@ -1,150 +1,163 @@
 import { Field, Poseidon } from 'snarkyjs';
-import { RIGHT, SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
+import { EMPTY_VALUE, RIGHT, SMT_DEPTH } from '../constant';
+import { defaultNodes } from '../default_nodes';
+import { FieldElements, Hasher } from '../model';
+import { Store } from '../store/store';
 import {
-  BaseNumIndexSparseMerkleProof,
-  compactNumIndexProof,
-  Hasher,
-  NumIndexSparseCompactMerkleProof,
-  NumIndexSparseMerkleProof,
+  SMTUtils,
+  SparseCompactMerkleProof,
+  SparseMerkleProof,
 } from './proofs';
-import { Store } from './store/store';
-import { defaultNodes } from './default_nodes';
-import { FieldElements } from './model';
 
-export { NumIndexSparseMerkleTree };
+export { SparseMerkleTree };
 
 /**
- * Numerically indexed Sparse Merkle Tree.
+ * Sparse Merkle Tree
  *
  * @export
- * @class NumIndexSparseMerkleTree
+ * @class SparseMerkleTree
+ * @template K
  * @template V
  */
-class NumIndexSparseMerkleTree<V extends FieldElements> {
+class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
+  /**
+   * Initial empty tree root based on poseidon hash algorithm
+   *
+   * @static
+   * @memberof SparseMerkleTree
+   */
+  static initialPoseidonHashRoot = Field(
+    '1363491840476538827947652000140631540976546729195695784589068790317102403216'
+  );
+
   protected root: Field;
   protected store: Store<V>;
   protected hasher: Hasher;
-  protected readonly height: number;
-  protected readonly maxNumIndex: bigint;
-  protected readonly hashValue: boolean;
+  protected config: { hashKey: boolean; hashValue: boolean };
 
   /**
-   * Build a new numerically indexed sparse merkle tree.
+   * Build a new sparse merkle tree
    *
    * @static
+   * @template K
    * @template V
    * @param {Store<V>} store
-   * @param {number} height
-   * @param {{ hasher?: Hasher; hashValue?: boolean }} [options={
+   * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
    *       hasher: Poseidon.hash,
+   *       hashKey: true,
    *       hashValue: true,
    *     }]
-   * @return {*}  {Promise<NumIndexSparseMerkleTree<V>>}
-   * @memberof NumIndexSparseMerkleTree
+   * @return {*}  {Promise<SparseMerkleTree<K, V>>}
+   * @memberof SparseMerkleTree
    */
-  public static async buildNewTree<V extends FieldElements>(
+  public static async build<K extends FieldElements, V extends FieldElements>(
     store: Store<V>,
-    height: number,
-    options: { hasher?: Hasher; hashValue?: boolean } = {
+    options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
       hasher: Poseidon.hash,
+      hashKey: true,
       hashValue: true,
     }
-  ): Promise<NumIndexSparseMerkleTree<V>> {
-    if (height > SMT_DEPTH || height < 1) {
-      throw new Error(`The height must be between 1 and ${SMT_DEPTH}`);
-    }
-
+  ): Promise<SparseMerkleTree<K, V>> {
     let hasher: Hasher = Poseidon.hash;
-    let hashValue = true;
+    let config = { hashKey: true, hashValue: true };
     if (options.hasher !== undefined) {
       hasher = options.hasher;
     }
+    if (options.hashKey !== undefined) {
+      config.hashKey = options.hashKey;
+    }
     if (options.hashValue !== undefined) {
-      hashValue = options.hashValue;
+      config.hashValue = options.hashValue;
     }
 
     store.clearPrepareOperationCache();
-
-    for (let i = 0; i < height; i++) {
-      let keyNode = defaultNodes(hasher, height)[i];
-      let value = defaultNodes(hasher, height)[i + 1];
+    for (let i = 0; i < SMT_DEPTH; i++) {
+      let keyNode = defaultNodes(hasher)[i];
+      let value = defaultNodes(hasher)[i + 1];
       let values = [value, value];
-
       store.preparePutNodes(keyNode, values);
     }
 
-    const root = defaultNodes(hasher, height)[0];
+    const root = defaultNodes(hasher)[0];
     store.prepareUpdateRoot(root);
     await store.commit();
 
-    return new NumIndexSparseMerkleTree(root, store, height, hasher, hashValue);
+    return new SparseMerkleTree(root, store, hasher, config);
   }
 
   /**
-   * Import a numerically indexed sparse merkle tree via existing store.
+   * Import a sparse merkle tree via existing store
    *
    * @static
+   * @template K
    * @template V
    * @param {Store<V>} store
-   * @param {number} height
-   * @param {{ hasher?: Hasher; hashValue?: boolean }} [options={
+   * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
    *       hasher: Poseidon.hash,
+   *       hashKey: true,
    *       hashValue: true,
    *     }]
-   * @return {*}  {Promise<NumIndexSparseMerkleTree<V>>}
-   * @memberof NumIndexSparseMerkleTree
+   * @return {*}  {Promise<SparseMerkleTree<K, V>>}
+   * @memberof SparseMerkleTree
    */
-  public static async importTree<V extends FieldElements>(
+  public static async import<K extends FieldElements, V extends FieldElements>(
     store: Store<V>,
-    height: number,
-    options: { hasher?: Hasher; hashValue?: boolean } = {
+    options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
       hasher: Poseidon.hash,
+      hashKey: true,
       hashValue: true,
     }
-  ): Promise<NumIndexSparseMerkleTree<V>> {
-    if (height > SMT_DEPTH || height < 1) {
-      throw new Error('The height must be between 1 and ' + SMT_DEPTH);
-    }
+  ): Promise<SparseMerkleTree<K, V>> {
     let hasher: Hasher = Poseidon.hash;
-    let hashValue = true;
+    let config = { hashKey: true, hashValue: true };
     if (options.hasher !== undefined) {
       hasher = options.hasher;
     }
+    if (options.hashKey !== undefined) {
+      config.hashKey = options.hashKey;
+    }
     if (options.hashValue !== undefined) {
-      hashValue = options.hashValue;
+      config.hashValue = options.hashValue;
     }
 
     const root: Field = await store.getRoot();
 
-    return new NumIndexSparseMerkleTree(root, store, height, hasher, hashValue);
+    return new SparseMerkleTree(root, store, hasher, config);
   }
 
   private constructor(
     root: Field,
     store: Store<V>,
-    height: number,
     hasher: Hasher,
-    hashValue: boolean
+    config: { hashKey: boolean; hashValue: boolean }
   ) {
-    if (height > SMT_DEPTH || height < 1) {
-      throw new Error('The height must be between 1 and ' + SMT_DEPTH);
-    }
-
     this.store = store;
     this.hasher = hasher;
-    this.hashValue = hashValue;
+    this.config = config;
     this.root = root;
-    this.height = height;
+  }
 
-    let h = BigInt(height);
-    this.maxNumIndex = 2n ** h - 1n;
+  private getKeyField(key: K): Field {
+    let keyFields = key.toFields();
+    let keyHashOrKeyField = keyFields[0];
+    if (this.config.hashKey) {
+      keyHashOrKeyField = this.digest(keyFields);
+    } else {
+      if (keyFields.length > 1) {
+        throw new Error(
+          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
+        );
+      }
+    }
+
+    return keyHashOrKeyField;
   }
 
   /**
    * Get the root of the tree.
    *
    * @return {*}  {Field}
-   * @memberof NumIndexSparseMerkleTree
+   * @memberof SparseMerkleTree
    */
   public getRoot(): Field {
     return this.root;
@@ -154,10 +167,10 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
    * Check if the tree is empty.
    *
    * @return {*}  {boolean}
-   * @memberof NumIndexSparseMerkleTree
+   * @memberof SparseMerkleTree
    */
   public isEmpty(): boolean {
-    const emptyRoot = defaultNodes(this.hasher, this.height)[0];
+    const emptyRoot = defaultNodes(this.hasher)[0];
     return this.root.equals(emptyRoot).toBoolean();
   }
 
@@ -165,17 +178,17 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
    * Get the depth of the tree.
    *
    * @return {*}  {number}
-   * @memberof NumIndexSparseMerkleTree
+   * @memberof SparseMerkleTree
    */
   public depth(): number {
-    return this.height;
+    return SMT_DEPTH;
   }
 
   /**
    * Set the root of the tree.
    *
    * @param {Field} root
-   * @memberof NumIndexSparseMerkleTree
+   * @memberof SparseMerkleTree
    */
   public async setRoot(root: Field) {
     this.store.clearPrepareOperationCache();
@@ -188,7 +201,7 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
    * Get the data store of the tree.
    *
    * @return {*}  {Store<V>}
-   * @memberof NumIndexSparseMerkleTree
+   * @memberof SparseMerkleTree
    */
   public getStore(): Store<V> {
     return this.store;
@@ -198,25 +211,25 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
    * Get the hasher function used by the tree.
    *
    * @return {*}  {Hasher}
-   * @memberof NumIndexSparseMerkleTree
+   * @memberof SparseMerkleTree
    */
   public getHasher(): Hasher {
     return this.hasher;
   }
 
   /**
-   * Get the value for an index from the tree.
+   * Get the value for a key from the tree.
    *
-   * @param {bigint} index
+   * @param {K} key
    * @return {*}  {(Promise<V | null>)}
-   * @memberof NumIndexSparseMerkleTree
+   * @memberof SparseMerkleTree
    */
-  public async get(index: bigint): Promise<V | null> {
+  public async get(key: K): Promise<V | null> {
     if (this.isEmpty()) {
       return null;
     }
 
-    let path = Field(index);
+    let path = this.getKeyField(key);
 
     try {
       const value = await this.store.getValue(path);
@@ -232,14 +245,14 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
   }
 
   /**
-   * Check if the index exists in the tree.
+   * Check if the key exists in the tree.
    *
-   * @param {bigint} index
+   * @param {K} key
    * @return {*}  {Promise<boolean>}
-   * @memberof NumIndexSparseMerkleTree
+   * @memberof SparseMerkleTree
    */
-  public async has(index: bigint): Promise<boolean> {
-    const v = await this.get(index);
+  public async has(key: K): Promise<boolean> {
+    const v = await this.get(key);
     if (v === null) {
       return false;
     }
@@ -251,7 +264,7 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
    * Clear the tree.
    *
    * @return {*}  {Promise<void>}
-   * @memberof NumIndexSparseMerkleTree
+   * @memberof SparseMerkleTree
    */
   public async clear(): Promise<void> {
     await this.store.clear();
@@ -260,25 +273,25 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
   /**
    * Delete a value from tree and return the new root of the tree.
    *
-   * @param {bigint} index
+   * @param {K} key
    * @return {*}  {Promise<Field>}
-   * @memberof NumIndexSparseMerkleTree
+   * @memberof SparseMerkleTree
    */
-  public async delete(index: bigint): Promise<Field> {
-    return await this.update(index);
+  public async delete(key: K): Promise<Field> {
+    return await this.update(key);
   }
 
   /**
-   * Update a new value for an index in the tree and return the new root of the tree.
+   * Update a new value for a key in the tree and return the new root of the tree.
    *
-   * @param {bigint} index
+   * @param {K} key
    * @param {V} [value]
    * @return {*}  {Promise<Field>}
-   * @memberof NumIndexSparseMerkleTree
+   * @memberof SparseMerkleTree
    */
-  public async update(index: bigint, value?: V): Promise<Field> {
+  public async update(key: K, value?: V): Promise<Field> {
     this.store.clearPrepareOperationCache();
-    const newRoot = await this.updateForRoot(this.root, index, value);
+    const newRoot = await this.updateForRoot(this.root, key, value);
     this.store.prepareUpdateRoot(newRoot);
     await this.store.commit();
     this.root = newRoot;
@@ -289,15 +302,15 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
   /**
    * Update multiple leaves and return the new root of the tree.
    *
-   * @param {{ index: bigint; value?: V }[]} ivs
+   * @param {{ key: K; value?: V }[]} kvs
    * @return {*}  {Promise<Field>}
-   * @memberof NumIndexSparseMerkleTree
+   * @memberof SparseMerkleTree
    */
-  public async updateAll(ivs: { index: bigint; value?: V }[]): Promise<Field> {
+  public async updateAll(kvs: { key: K; value?: V }[]): Promise<Field> {
     this.store.clearPrepareOperationCache();
     let newRoot: Field = this.root;
-    for (let i = 0, len = ivs.length; i < len; i++) {
-      newRoot = await this.updateForRoot(newRoot, ivs[i].index, ivs[i].value);
+    for (let i = 0, len = kvs.length; i < len; i++) {
+      newRoot = await this.updateForRoot(newRoot, kvs[i].key, kvs[i].value);
     }
     this.store.prepareUpdateRoot(newRoot);
     await this.store.commit();
@@ -307,28 +320,26 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
   }
 
   /**
-   * Create a merkle proof for an index against the current root.
+   * Create a merkle proof for a key against the current root.
    *
-   * @param {bigint} index
-   * @return {*}  {Promise<BaseNumIndexSparseMerkleProof>}
-   * @memberof NumIndexSparseMerkleTree
+   * @param {K} key
+   * @return {*}  {Promise<SparseMerkleProof>}
+   * @memberof SparseMerkleTree
    */
-  public async prove(index: bigint): Promise<BaseNumIndexSparseMerkleProof> {
-    return await this.proveForRoot(this.root, index);
+  public async prove(key: K): Promise<SparseMerkleProof> {
+    return await this.proveForRoot(this.root, key);
   }
 
   /**
-   * Create a compacted merkle proof for an index against the current root.
+   * Create a compacted merkle proof for a key against the current root.
    *
-   * @param {bigint} index
-   * @return {*}  {Promise<NumIndexSparseCompactMerkleProof>}
-   * @memberof NumIndexSparseMerkleTree
+   * @param {K} key
+   * @return {*}  {Promise<SparseCompactMerkleProof>}
+   * @memberof SparseMerkleTree
    */
-  public async proveCompact(
-    index: bigint
-  ): Promise<NumIndexSparseCompactMerkleProof> {
-    const proof = await this.prove(index);
-    return compactNumIndexProof(proof, this.hasher);
+  public async proveCompact(key: K): Promise<SparseCompactMerkleProof> {
+    const proof = await this.prove(key);
+    return SMTUtils.compactProof(proof, this.hasher);
   }
 
   protected digest(data: Field[]): Field {
@@ -337,16 +348,11 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
 
   protected async updateForRoot(
     root: Field,
-    key: bigint,
+    key: K,
     value?: V
   ): Promise<Field> {
-    if (key > this.maxNumIndex) {
-      throw new Error(
-        'The numeric index can only be between 0 and ' + this.maxNumIndex
-      );
-    }
+    let path = this.getKeyField(key);
 
-    const path = Field(key);
     const { sideNodes, pathNodes, leafData } = await this.sideNodesForRoot(
       root,
       path
@@ -370,11 +376,10 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
     value?: V
   ): Field {
     let currentHash: Field;
-
     if (value !== undefined) {
       const valueFields = value.toFields();
 
-      if (this.hashValue) {
+      if (this.config.hashValue) {
         currentHash = this.digest(valueFields);
       } else {
         if (valueFields.length > 1) {
@@ -385,16 +390,17 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
 
         currentHash = valueFields[0];
       }
+
       this.store.preparePutValue(path, value);
     } else {
-      currentHash = SMT_EMPTY_VALUE;
+      currentHash = EMPTY_VALUE;
       this.store.prepareDelValue(path);
     }
 
     if (oldLeafData.equals(currentHash).toBoolean()) {
       return this.root;
     } else {
-      if (oldLeafData.equals(SMT_EMPTY_VALUE).not().toBoolean()) {
+      if (!oldLeafData.equals(EMPTY_VALUE).toBoolean()) {
         for (let i = 0, len = pathNodes.length; i < len; i++) {
           this.store.prepareDelNodes(pathNodes[i]);
         }
@@ -403,8 +409,8 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
 
     this.store.preparePutNodes(currentHash, [currentHash]);
 
-    const pathBits = path.toBits(this.height);
-    for (let i = this.height - 1; i >= 0; i--) {
+    const pathBits = path.toBits();
+    for (let i = this.depth() - 1; i >= 0; i--) {
       let sideNode = sideNodes[i];
       let currentValue = [];
       if (pathBits[i].toBoolean() === RIGHT) {
@@ -424,15 +430,14 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
     root: Field,
     path: Field
   ): Promise<{ sideNodes: Field[]; pathNodes: Field[]; leafData: Field }> {
-    const pathBits = path.toBits(this.height);
-
+    const pathBits = path.toBits();
     let sideNodes: Field[] = [];
     let pathNodes: Field[] = [];
     pathNodes.push(root);
 
     let nodeHash: Field = root;
     let sideNode: Field;
-    for (let i = 0; i < this.height; i++) {
+    for (let i = 0, depth = this.depth(); i < depth; i++) {
       const currentValue = await this.store.getNodes(nodeHash);
       if (pathBits[i].toBoolean() === RIGHT) {
         sideNode = currentValue[0];
@@ -441,18 +446,16 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
         sideNode = currentValue[1];
         nodeHash = currentValue[0];
       }
-
       sideNodes.push(sideNode);
       pathNodes.push(nodeHash);
     }
 
     let leafData: Field;
-
-    if (!nodeHash.equals(SMT_EMPTY_VALUE).toBoolean()) {
+    if (!nodeHash.equals(EMPTY_VALUE).toBoolean()) {
       let leaf = await this.store.getNodes(nodeHash);
       leafData = leaf[0];
     } else {
-      leafData = SMT_EMPTY_VALUE;
+      leafData = EMPTY_VALUE;
     }
 
     return {
@@ -464,15 +467,12 @@ class NumIndexSparseMerkleTree<V extends FieldElements> {
 
   protected async proveForRoot(
     root: Field,
-    key: bigint
-  ): Promise<BaseNumIndexSparseMerkleProof> {
-    const path = Field(key);
+    key: K
+  ): Promise<SparseMerkleProof> {
+    let path = this.getKeyField(key);
+
     const { sideNodes } = await this.sideNodesForRoot(root, path);
 
-    class InnerNumIndexSparseMerkleProof extends NumIndexSparseMerkleProof(
-      this.depth()
-    ) {}
-
-    return new InnerNumIndexSparseMerkleProof(root, path, sideNodes);
+    return new SparseMerkleProof(sideNodes, root);
   }
 }

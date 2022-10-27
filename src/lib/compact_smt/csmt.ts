@@ -1,26 +1,20 @@
 import { Field, Poseidon } from 'snarkyjs';
-import {
-  CP_PADD_VALUE,
-  ERR_KEY_ALREADY_EMPTY,
-  RIGHT,
-  CSMT_DEPTH,
-  PLACEHOLDER,
-} from './constant';
-import { FieldElements } from '../model';
-import { Hasher } from '../proofs';
+import { ERR_KEY_ALREADY_EMPTY, RIGHT } from '../constant';
+import { FieldElements, Hasher } from '../model';
 import { Store } from '../store/store';
-import { countCommonPrefix, printBits } from '../utils';
+import { countCommonPrefix } from '../utils';
+import { CP_PADD_VALUE, CSMT_DEPTH, PLACEHOLDER } from './constant';
 import {
-  c_compactProof,
-  CSparseCompactMerkleProof,
   CompactSparseMerkleProof,
+  CSMTUtils,
+  CSparseCompactMerkleProof,
 } from './proofs';
 import { TreeHasher } from './tree_hasher';
 
 export { CompactSparseMerkleTree };
 
 /**
- * Experimental: CompactSparseMerkleTree
+ * CompactSparseMerkleTree
  *
  * @export
  * @class CompactSparseMerkleTree
@@ -319,7 +313,7 @@ class CompactSparseMerkleTree<
     key: K
   ): Promise<CSparseCompactMerkleProof> {
     const proof = await this.doProveForRoot(root, key, false);
-    return c_compactProof(proof, this.th.getHasher());
+    return CSMTUtils.compactProof(proof, this.th.getHasher());
   }
 
   private async doProveForRoot(

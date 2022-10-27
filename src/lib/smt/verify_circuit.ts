@@ -1,14 +1,14 @@
 import { Bool, Circuit, Field, Poseidon } from 'snarkyjs';
-import { SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
-import { FieldElements } from './model';
-import { Hasher, SparseMerkleProof } from './proofs';
+import { EMPTY_VALUE, SMT_DEPTH } from '../constant';
+import { FieldElements, Hasher } from '../model';
+import { SparseMerkleProof } from './proofs';
 
 export { ProvableSMTUtils };
 
 class ProvableSMTUtils {
-  static SMT_EMPTY_VALUE = SMT_EMPTY_VALUE;
-  static verifyProofByField = verifyProofInCircuit;
-  static computeRootByField = computeRootInCircuit;
+  static EMPTY_VALUE = EMPTY_VALUE;
+  static verifyProofByField = verifyProofByFieldInCircuit;
+  static computeRootByField = computeRootByFieldInCircuit;
 
   static checkMembership<K extends FieldElements, V extends FieldElements>(
     proof: SparseMerkleProof,
@@ -32,7 +32,7 @@ class ProvableSMTUtils {
       valueHashOrValueField = options.hasher(valueFields);
     }
 
-    return verifyProofInCircuit(
+    return verifyProofByFieldInCircuit(
       proof,
       expectedRoot,
       keyHashOrKeyField,
@@ -56,11 +56,11 @@ class ProvableSMTUtils {
       keyHashOrKeyField = options.hasher(keyFields);
     }
 
-    return verifyProofInCircuit(
+    return verifyProofByFieldInCircuit(
       proof,
       expectedRoot,
       keyHashOrKeyField,
-      SMT_EMPTY_VALUE,
+      EMPTY_VALUE,
       options.hasher
     );
   }
@@ -86,7 +86,7 @@ class ProvableSMTUtils {
       valueHashOrValueField = options.hasher(valueFields);
     }
 
-    return computeRootInCircuit(
+    return computeRootByFieldInCircuit(
       sideNodes,
       keyHashOrKeyField,
       valueHashOrValueField,
@@ -106,14 +106,14 @@ class ProvableSMTUtils {
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {Bool}
  */
-function verifyProofInCircuit(
+function verifyProofByFieldInCircuit(
   proof: SparseMerkleProof,
   expectedRoot: Field,
   keyHashOrKeyField: Field,
   valueHashOrValueField: Field,
   hasher: Hasher = Poseidon.hash
 ): Bool {
-  const currentRoot = computeRootInCircuit(
+  const currentRoot = computeRootByFieldInCircuit(
     proof.sideNodes,
     keyHashOrKeyField,
     valueHashOrValueField,
@@ -133,7 +133,7 @@ function verifyProofInCircuit(
  * @param {Hasher} [hasher=Poseidon.hash]
  * @return {*}  {Field}
  */
-function computeRootInCircuit(
+function computeRootByFieldInCircuit(
   sideNodes: Field[],
   keyHashOrKeyField: Field,
   valueHashOrValueField: Field,

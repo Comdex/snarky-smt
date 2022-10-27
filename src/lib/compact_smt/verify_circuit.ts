@@ -38,7 +38,7 @@ class ProvableCSMTUtils {
 
     const path = keyHashOrKeyField;
     let currentHash = th.digestLeaf(path, valueHashOrValueField).hash;
-    const currentRoot = c_computeRootInCircuit(
+    const currentRoot = computeRootInCircuit(
       proof.sideNodes,
       path,
       currentHash,
@@ -75,7 +75,7 @@ class ProvableCSMTUtils {
       th.digestLeaf(actualPath, leafData).hash
     );
 
-    const currentRoot = c_computeRootInCircuit(
+    const currentRoot = computeRootInCircuit(
       proof.sideNodes,
       path,
       currentHash,
@@ -85,10 +85,7 @@ class ProvableCSMTUtils {
   }
 }
 
-function c_computeRootInCircuit<
-  K extends FieldElements,
-  V extends FieldElements
->(
+function computeRootInCircuit<K extends FieldElements, V extends FieldElements>(
   sideNodes: Field[],
   keyHashOrKeyField: Field,
   valueHashOrValueField: Field,

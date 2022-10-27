@@ -28,10 +28,10 @@
     "demo": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/experimental/demo.js",
     "ctree": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/experimental/ctree.js",
     "subtree": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/experimental/subtree.js",
-    "subtree:numindex": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/experimental/numindex_subtree.js",
+    "subtree:merkle": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/experimental/merkle_subtree.js",
     "clear": "rm -rf ./build",
-    "example:numindex": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/examples/numindex_merkle_zkapp.js",
-    "example": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/examples/merkle_zkapp.js",
+    "example:merkle": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/examples/merkle_zkapp.js",
+    "example": "tsc -p tsconfig.json && node --experimental-specifier-resolution=node ./build/src/examples/smt_zkapp.js",
     "build:main": "tsc -p tsconfig.json",
     "build:module": "rm -rf ./build && tsc -p tsconfig.module.json",
     "watch:build": "tsc -p tsconfig.json -w",
@@ -42,7 +42,7 @@
     "test": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js --maxWorkers 3",
     "test:compact": "jest --config jest.config.js compact_smt",
     "test:ts": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js --findRelatedTests test/compact_smt.test.ts",
-    "test:smt": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js --findRelatedTests test/compact_smt.test.ts test/smt.test.ts test/multiversion_smt.test.ts",
+    "test:tree": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js --findRelatedTests test/compact_smt.test.ts test/smt.test.ts test/merkle_tree.test.ts",
     "prepublishOnly": "rm -rf ./build && npm run build:module && npm run doc:html && npm run doc:publish"
   },
   "engines": {

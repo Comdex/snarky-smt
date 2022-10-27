@@ -1,6 +1,5 @@
 import { Bool, Field, isReady, Poseidon } from 'snarkyjs';
-import { FieldElements } from '../model';
-import { Hasher } from '../proofs';
+import { FieldElements, Hasher } from '../model';
 
 await isReady;
 

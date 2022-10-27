@@ -1,6 +1,6 @@
 import { Field } from 'snarkyjs';
-import { SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
-import { Hasher } from './proofs';
+import { SMT_DEPTH, EMPTY_VALUE } from './constant';
+import { Hasher } from './model';
 
 export { defaultNodes };
 
@@ -21,7 +21,7 @@ function defaultNodes(hasher: Hasher, treeHeight: number = SMT_DEPTH): Field[] {
   if (nodes === undefined) {
     let nodes = new Array<Field>(treeHeight + 1);
 
-    let h = SMT_EMPTY_VALUE;
+    let h = EMPTY_VALUE;
     nodes[treeHeight] = h;
 
     for (let i = treeHeight - 1; i >= 0; i--) {

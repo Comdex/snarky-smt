@@ -1,9 +1,8 @@
 import { Field, Poseidon } from 'snarkyjs';
-import { FieldElements } from '../model';
-import { Hasher } from '../proofs';
+import { FieldElements, Hasher } from '../model';
 import { Store } from '../store/store';
-import { CompactSparseMerkleProof, c_verifyProofWithUpdates } from './proofs';
-import { CompactSparseMerkleTree } from './smt';
+import { CompactSparseMerkleProof, CSMTUtils } from './proofs';
+import { CompactSparseMerkleTree } from './csmt';
 
 export { CompactDeepSparseMerkleSubTree };
 
@@ -33,7 +32,7 @@ class CompactDeepSparseMerkleSubTree<
   }
 
   async addBranch(proof: CompactSparseMerkleProof, key: K, value?: V) {
-    const { ok, updates } = c_verifyProofWithUpdates(
+    const { ok, updates } = CSMTUtils.verifyProofWithUpdates(
       proof,
       this.getRoot(),
       key,

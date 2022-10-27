@@ -23,16 +23,15 @@ import {
   state,
   UInt64,
 } from 'snarkyjs';
-import { SMT_EMPTY_VALUE } from '../lib/constant';
-import { NumIndexSparseMerkleTree } from '../lib/numindex_smt';
-import { NumIndexSparseMerkleProof } from '../lib/proofs';
+import { MerkleTree } from '../lib/merkle/merkle_tree';
+import { ProvableMerkleTreeUtils } from '../lib/merkle/verify_circuit';
 import { MemoryStore } from '../lib/store/memory_store';
 
 await isReady;
 
 const doProofs = true;
 
-class MerkleProof extends NumIndexSparseMerkleProof(3) {}
+class MerkleProof extends ProvableMerkleTreeUtils.MerkleProof(3) {}
 
 // we need the initiate tree root in order to tell the contract about our off-chain storage
 let initialCommitment: Field = Field.zero;
@@ -59,23 +58,26 @@ class Leaderboard extends SmartContract {
 
   // If an account with this name does not exist, it is added as a new account (non-existence merkle proof)
   @method
-  addNewField(f: Field, proof: MerkleProof) {
+  addNewField(index: Field, f: Field, proof: MerkleProof) {
     // we fetch the on-chain commitment
     let commitment = this.commitment.get();
     this.commitment.assertEquals(commitment);
 
     // We need to prove that the numerically indexed account does not exist in the merkle tree.
 
-    //proof.verifyInCircuit(commitment, SMT_EMPTY_VALUE).assertTrue();
-    proof.checkNonMembershipInCircuit(commitment).assertTrue();
+    ProvableMerkleTreeUtils.checkNonMembership(
+      proof,
+      commitment,
+      index
+    ).assertTrue();
 
     // Add a new account under the same numeric index.
-    let newCommitment = proof.computeRootInCircuit(f);
+    let newCommitment = ProvableMerkleTreeUtils.computeRoot(proof, index, f);
     this.commitment.set(newCommitment);
   }
 
   @method
-  guessPreimage(guess: Field, f: Field, proof: MerkleProof) {
+  guessPreimage(guess: Field, index: Field, f: Field, proof: MerkleProof) {
     // this is our hash! its the hash of the preimage "22", but keep it a secret!
     let target = Field(
       '17057234437185175411792943285768571642343179330449434169483610110583519635705'
@@ -88,7 +90,12 @@ class Leaderboard extends SmartContract {
     this.commitment.assertEquals(commitment);
 
     // we check that the account is within the committed Merkle Tree
-    proof.verifyInCircuit(commitment, f).assertTrue();
+    ProvableMerkleTreeUtils.checkMembership(
+      proof,
+      commitment,
+      index,
+      f
+    ).assertTrue();
     Circuit.asProver(() => {
       console.log('proof verify ok');
     });
@@ -97,7 +104,11 @@ class Leaderboard extends SmartContract {
     let newField = f.add(1);
 
     // we calculate the new Merkle Root, based on the account changes
-    let newCommitment = proof.computeRootInCircuit(newField);
+    let newCommitment = ProvableMerkleTreeUtils.computeRoot(
+      proof,
+      index,
+      newField
+    );
     Circuit.asProver(() => {
       console.log('compute root ok');
     });
@@ -124,7 +135,7 @@ let olivia = Field(4);
 // we now need "wrap" the Merkle tree around our off-chain storage
 // we initialize a new Merkle Tree with height 8
 let store = new MemoryStore<Field>();
-let tree = await NumIndexSparseMerkleTree.buildNewTree<Field>(store, 3, {
+let tree = await MerkleTree.build<Field>(store, 3, {
   hashValue: false,
 });
 
@@ -167,7 +178,7 @@ async function addNewField(index: bigint, f: Field) {
   let merkleProof = await tree.prove(index);
 
   let tx = await Mina.transaction(feePayer, () => {
-    leaderboardZkApp.addNewField(f, merkleProof);
+    leaderboardZkApp.addNewField(Field(index), f, merkleProof);
     if (!doProofs) leaderboardZkApp.sign(zkappKey);
   });
   if (doProofs) {
@@ -189,7 +200,7 @@ async function makeGuess(index: bigint, guess: number) {
   console.log('proof height: ', proof.height());
 
   let tx = await Mina.transaction(feePayer, () => {
-    leaderboardZkApp.guessPreimage(Field(guess), f!, proof);
+    leaderboardZkApp.guessPreimage(Field(guess), Field(index), f!, proof);
     if (!doProofs) leaderboardZkApp.sign(zkappKey);
   });
   if (doProofs) {

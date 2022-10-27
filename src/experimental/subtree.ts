@@ -1,22 +1,21 @@
 import {
+  AccountUpdate,
   Circuit,
   DeployArgs,
   Field,
   isReady,
-  SmartContract,
+  method,
+  Mina,
   Permissions,
+  PrivateKey,
+  shutdown,
+  SmartContract,
   State,
   state,
-  Mina,
-  PrivateKey,
-  AccountUpdate,
-  shutdown,
-  method,
-  Poseidon,
 } from 'snarkyjs';
-import { ProvableDeepSparseMerkleSubTree } from '../lib/deep_subtree_circuit';
-import { SparseMerkleProof } from '../lib/proofs';
-import { SparseMerkleTree } from '../lib/smt';
+import { ProvableDeepSparseMerkleSubTree } from '../lib/smt/deep_subtree_circuit';
+import { SparseMerkleProof } from '../lib/smt/proofs';
+import { SparseMerkleTree } from '../lib/smt/smt';
 import { MemoryStore } from '../lib/store/memory_store';
 
 await isReady;
@@ -87,9 +86,7 @@ let feePayerKey = local.testAccounts[0].privateKey;
 let zkappKey = PrivateKey.random();
 let zkappAddress = zkappKey.toPublicKey();
 
-let tree = await SparseMerkleTree.buildNewTree<Field, Field>(
-  new MemoryStore<Field>()
-);
+let tree = await SparseMerkleTree.build<Field, Field>(new MemoryStore<Field>());
 const key1 = Field(1);
 const value1 = Field(33);
 const key2 = Field(2);

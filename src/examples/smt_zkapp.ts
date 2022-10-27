@@ -7,35 +7,34 @@ Merkle Trees give developers the power of storing large amounts of data off-chai
 */
 
 import {
-  SmartContract,
-  isReady,
-  shutdown,
-  Poseidon,
-  Field,
-  Permissions,
+  AccountUpdate,
+  CircuitString,
+  CircuitValue,
   DeployArgs,
+  Field,
+  isReady,
+  method,
+  Mina,
+  Permissions,
+  Poseidon,
+  PrivateKey,
+  prop,
+  PublicKey,
+  shutdown,
+  SmartContract,
   State,
   state,
-  CircuitValue,
-  PublicKey,
-  UInt64,
-  prop,
-  Mina,
-  method,
   UInt32,
-  PrivateKey,
-  AccountUpdate,
+  UInt64,
 } from 'snarkyjs';
-import { SMT_EMPTY_VALUE } from '../lib/constant';
-import { NumIndexSparseMerkleTree } from '../lib/numindex_smt';
-import { NumIndexSparseMerkleProof } from '../lib/proofs';
+import { SparseMerkleProof } from '../lib/smt/proofs';
+import { SparseMerkleTree } from '../lib/smt/smt';
+import { ProvableSMTUtils } from '../lib/smt/verify_circuit';
 import { MemoryStore } from '../lib/store/memory_store';
 
 await isReady;
 
 const doProofs = true;
-
-class MerkleProof extends NumIndexSparseMerkleProof(8) {}
 
 class Account extends CircuitValue {
   @prop publicKey: PublicKey;
@@ -47,14 +46,11 @@ class Account extends CircuitValue {
     this.points = points;
   }
 
-  hash(): Field {
-    return Poseidon.hash(this.toFields());
-  }
-
   addPoints(n: number): Account {
     return new Account(this.publicKey, this.points.add(n));
   }
 }
+
 // we need the initiate tree root in order to tell the contract about our off-chain storage
 let initialCommitment: Field = Field.zero;
 /*
@@ -80,21 +76,40 @@ class Leaderboard extends SmartContract {
 
   // If an account with this name does not exist, it is added as a new account (non-existence merkle proof)
   @method
-  addNewAccount(account: Account, proof: MerkleProof) {
+  addNewAccount(
+    name: CircuitString,
+    account: Account,
+    merkleProof: SparseMerkleProof
+  ) {
     // we fetch the on-chain commitment
     let commitment = this.commitment.get();
     this.commitment.assertEquals(commitment);
 
-    // We need to prove that the numerically indexed account does not exist in the merkle tree.
-    proof.verifyInCircuit(commitment, SMT_EMPTY_VALUE).assertTrue();
+    // We need to prove that the account is not in Merkle Tree.
+    ProvableSMTUtils.checkNonMembership(
+      merkleProof,
+      commitment,
+      name
+    ).assertTrue();
 
-    // Add a new account under the same numeric index.
-    let newCommitment = proof.computeRootInCircuit(account.hash());
+    // add new account
+    let newCommitment = ProvableSMTUtils.computeRoot(
+      merkleProof.sideNodes,
+      name,
+      account
+    );
+
     this.commitment.set(newCommitment);
   }
 
+  // existence merkle proof
   @method
-  guessPreimage(guess: Field, account: Account, proof: MerkleProof) {
+  guessPreimage(
+    guess: Field,
+    name: CircuitString,
+    account: Account,
+    merkleProof: SparseMerkleProof
+  ) {
     // this is our hash! its the hash of the preimage "22", but keep it a secret!
     let target = Field(
       '17057234437185175411792943285768571642343179330449434169483610110583519635705'
@@ -107,13 +122,22 @@ class Leaderboard extends SmartContract {
     this.commitment.assertEquals(commitment);
 
     // we check that the account is within the committed Merkle Tree
-    proof.verifyInCircuit(commitment, account.hash()).assertTrue();
+    ProvableSMTUtils.checkMembership(
+      merkleProof,
+      commitment,
+      name,
+      account
+    ).assertTrue();
 
     // we update the account and grant one point!
     let newAccount = account.addPoints(1);
 
     // we calculate the new Merkle Root, based on the account changes
-    let newCommitment = proof.computeRootInCircuit(newAccount.hash());
+    let newCommitment = ProvableSMTUtils.computeRoot(
+      merkleProof.sideNodes,
+      name,
+      newAccount
+    );
 
     this.commitment.set(newCommitment);
   }
@@ -129,24 +153,25 @@ let feePayer = Local.testAccounts[0].privateKey;
 let zkappKey = PrivateKey.random();
 let zkappAddress = zkappKey.toPublicKey();
 
-let bob = new Account(Local.testAccounts[0].publicKey, UInt32.from(0));
-let alice = new Account(Local.testAccounts[1].publicKey, UInt32.from(0));
-let charlie = new Account(Local.testAccounts[2].publicKey, UInt32.from(0));
-let olivia = new Account(Local.testAccounts[3].publicKey, UInt32.from(5));
-
-// we now need "wrap" the Merkle tree around our off-chain storage
-// we initialize a new Merkle Tree with height 8
 let store = new MemoryStore<Account>();
-let tree = await NumIndexSparseMerkleTree.buildNewTree<Account>(store, 8);
+let smt = await SparseMerkleTree.build<CircuitString, Account>(store);
 
-await tree.update(0n, bob);
-await tree.update(1n, alice);
-await tree.update(2n, charlie);
-// await tree.update(3n, olivia);
+const Bob = CircuitString.fromString('Bob');
+const Alice = CircuitString.fromString('Alice');
+const Charlie = CircuitString.fromString('Charlie');
+const Olivia = CircuitString.fromString('Olivia');
+
+let bobAc = new Account(Local.testAccounts[0].publicKey, UInt32.from(0));
+let aliceAc = new Account(Local.testAccounts[1].publicKey, UInt32.from(0));
+let charlieAc = new Account(Local.testAccounts[2].publicKey, UInt32.from(0));
+let oliviaAc = new Account(Local.testAccounts[3].publicKey, UInt32.from(2));
+
+await smt.update(Bob, bobAc);
+await smt.update(Alice, aliceAc);
+await smt.update(Charlie, charlieAc);
 
 // now that we got our accounts set up, we need the commitment to deploy our contract!
-initialCommitment = tree.getRoot();
-console.log('initialCommitment: ', initialCommitment.toString());
+initialCommitment = smt.getRoot();
 
 let leaderboardZkApp = new Leaderboard(zkappAddress);
 console.log('Deploying leaderboard..');
@@ -159,24 +184,24 @@ let tx = await Mina.transaction(feePayer, () => {
 });
 tx.send();
 
-console.log('Initial points: ' + (await tree.get(0n))?.points);
+console.log('Initial points: ' + (await smt.get(Bob))?.points);
 
 console.log('Making guess..');
-await makeGuess(0n, 22);
+await makeGuess(Bob, 22);
 
-console.log('Final points: ' + (await tree.get(0n))?.points);
+console.log('Final points: ' + (await smt.get(Bob))?.points);
 
-await addNewAccount(3n, olivia);
+await addNewAccount(Olivia, oliviaAc);
 
-console.log('Final Olivia points: ' + (await tree.get(3n))?.points);
+console.log('Final Olivia points: ' + (await smt.get(Olivia))?.points);
 
 shutdown();
 
-async function addNewAccount(index: bigint, account: Account) {
-  let merkleProof = await tree.prove(index);
+async function addNewAccount(name: CircuitString, account: Account) {
+  let merkleProof = await smt.prove(name);
 
   let tx = await Mina.transaction(feePayer, () => {
-    leaderboardZkApp.addNewAccount(account, merkleProof);
+    leaderboardZkApp.addNewAccount(name, account, merkleProof);
     if (!doProofs) leaderboardZkApp.sign(zkappKey);
   });
   if (doProofs) {
@@ -184,19 +209,17 @@ async function addNewAccount(index: bigint, account: Account) {
   }
   tx.send();
 
-  await tree.update(index, account!);
-  leaderboardZkApp.commitment.get().assertEquals(tree.getRoot());
+  await smt.update(name, account!);
+  leaderboardZkApp.commitment.get().assertEquals(smt.getRoot());
 }
 
-async function makeGuess(index: bigint, guess: number) {
-  let account = await tree.get(index);
-  let proof = await tree.prove(index);
-  console.log('proof root: ', proof.root.toString());
+async function makeGuess(name: CircuitString, guess: number) {
+  let account = await smt.get(name);
 
-  console.log('proof height: ', proof.height());
+  let merkleProof = await smt.prove(name);
 
   let tx = await Mina.transaction(feePayer, () => {
-    leaderboardZkApp.guessPreimage(Field(guess), account!, proof);
+    leaderboardZkApp.guessPreimage(Field(guess), name, account!, merkleProof);
     if (!doProofs) leaderboardZkApp.sign(zkappKey);
   });
   if (doProofs) {
@@ -206,7 +229,6 @@ async function makeGuess(index: bigint, guess: number) {
 
   // if the transaction was successful, we can update our off-chain storage as well
   account!.points = account!.points.add(1);
-  await tree.update(index, account!);
-  console.log('final tree root: ', tree.getRoot().toString());
-  leaderboardZkApp.commitment.get().assertEquals(tree.getRoot());
+  await smt.update(name, account!);
+  leaderboardZkApp.commitment.get().assertEquals(smt.getRoot());
 }
