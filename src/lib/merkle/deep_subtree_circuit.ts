@@ -41,7 +41,7 @@ class ProvableDeepMerkleSubTree<V extends FieldElements> {
     let valueHashOrValueField = EMPTY_VALUE;
     if (value) {
       let valueFields = value.toFields();
-      let valueHashOrValueField = valueFields[0];
+      valueHashOrValueField = valueFields[0];
       if (this.hashValue) {
         valueHashOrValueField = this.hasher(valueFields);
       }

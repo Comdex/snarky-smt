@@ -73,7 +73,7 @@ class CompactSparseMerkleTree<
   }
 
   /**
-   * Build a new compacted sparse merkle tree
+   * Import a compacted sparse merkle tree
    *
    * @static
    * @template K
@@ -87,7 +87,7 @@ class CompactSparseMerkleTree<
    * @return {*}  {Promise<CompactSparseMerkleTree<K, V>>}
    * @memberof CompactSparseMerkleTree
    */
-  static async importTree<K extends FieldElements, V extends FieldElements>(
+  static async import<K extends FieldElements, V extends FieldElements>(
     store: Store<V>,
     options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
       hasher: Poseidon.hash,
