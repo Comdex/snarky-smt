@@ -47,22 +47,26 @@ class ProvableMerkleTreeUtils {
     proof: BaseMerkleProof,
     index: Field,
     value: V,
-    options: { hasher: Hasher; hashValue: boolean } = {
+    options: { hasher?: Hasher; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashValue: true,
     }
   ): Field {
+    let hasher = Poseidon.hash;
+    if (options.hasher !== undefined) {
+      hasher = options.hasher;
+    }
     let valueFields = value.toFields();
     let valueHashOrValueField = valueFields[0];
     if (options.hashValue) {
-      valueHashOrValueField = options.hasher(valueFields);
+      valueHashOrValueField = hasher(valueFields);
     }
 
     return computeRootByFieldInCircuit(
       proof,
       index,
       valueHashOrValueField,
-      options.hasher
+      hasher
     );
   }
 
@@ -71,7 +75,7 @@ class ProvableMerkleTreeUtils {
     expectedRoot: Field,
     index: Field,
     value: V,
-    options: { hasher: Hasher; hashValue: boolean } = {
+    options: { hasher?: Hasher; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashValue: true,
     }
@@ -80,7 +84,7 @@ class ProvableMerkleTreeUtils {
     return expectedRoot.equals(currentRoot);
   }
 
-  static checkNonMembership<V extends FieldElements>(
+  static checkNonMembership(
     proof: BaseMerkleProof,
     expectedRoot: Field,
     index: Field,

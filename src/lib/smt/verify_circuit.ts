@@ -15,21 +15,25 @@ class ProvableSMTUtils {
     expectedRoot: Field,
     key: K,
     value: V,
-    options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
+    options: { hasher?: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
       hashValue: true,
     }
   ): Bool {
+    let hasher = Poseidon.hash;
+    if (options.hasher !== undefined) {
+      hasher = options.hasher;
+    }
     let keyFields = key.toFields();
     let valueFields = value.toFields();
     let keyHashOrKeyField = keyFields[0];
     if (options.hashKey) {
-      keyHashOrKeyField = options.hasher(keyFields);
+      keyHashOrKeyField = hasher(keyFields);
     }
     let valueHashOrValueField = valueFields[0];
     if (options.hashValue) {
-      valueHashOrValueField = options.hasher(valueFields);
+      valueHashOrValueField = hasher(valueFields);
     }
 
     return verifyProofByFieldInCircuit(
@@ -37,7 +41,7 @@ class ProvableSMTUtils {
       expectedRoot,
       keyHashOrKeyField,
       valueHashOrValueField,
-      options.hasher
+      hasher
     );
   }
 
@@ -45,15 +49,20 @@ class ProvableSMTUtils {
     proof: SparseMerkleProof,
     expectedRoot: Field,
     key: K,
-    options: { hasher: Hasher; hashKey: boolean } = {
+    options: { hasher?: Hasher; hashKey: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
     }
   ): Bool {
+    let hasher = Poseidon.hash;
+    if (options.hasher !== undefined) {
+      hasher = options.hasher;
+    }
+
     let keyFields = key.toFields();
     let keyHashOrKeyField = keyFields[0];
     if (options.hashKey) {
-      keyHashOrKeyField = options.hasher(keyFields);
+      keyHashOrKeyField = hasher(keyFields);
     }
 
     return verifyProofByFieldInCircuit(
@@ -61,7 +70,7 @@ class ProvableSMTUtils {
       expectedRoot,
       keyHashOrKeyField,
       EMPTY_VALUE,
-      options.hasher
+      hasher
     );
   }
 
@@ -69,21 +78,26 @@ class ProvableSMTUtils {
     sideNodes: Field[],
     key: K,
     value: V,
-    options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
+    options: { hasher?: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
       hashValue: true,
     }
   ): Field {
+    let hasher = Poseidon.hash;
+    if (options.hasher !== undefined) {
+      hasher = options.hasher;
+    }
+
     let keyFields = key.toFields();
     let valueFields = value.toFields();
     let keyHashOrKeyField = keyFields[0];
     if (options.hashKey) {
-      keyHashOrKeyField = options.hasher(keyFields);
+      keyHashOrKeyField = hasher(keyFields);
     }
     let valueHashOrValueField = valueFields[0];
     if (options.hashValue) {
-      valueHashOrValueField = options.hasher(valueFields);
+      valueHashOrValueField = hasher(valueFields);
     }
 
     return computeRootByFieldInCircuit(

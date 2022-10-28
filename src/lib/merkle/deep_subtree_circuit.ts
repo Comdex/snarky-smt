@@ -24,7 +24,7 @@ class ProvableDeepMerkleSubTree<V extends FieldElements> {
   constructor(
     root: Field,
     height: number,
-    options: { hasher: Hasher; hashValue: boolean } = {
+    options: { hasher?: Hasher; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashValue: true,
     }
@@ -33,13 +33,16 @@ class ProvableDeepMerkleSubTree<V extends FieldElements> {
     this.nodeStore = new Map<string, Field[]>();
     this.valueStore = new Map<string, Field>();
     this.height = height;
-    this.hasher = options.hasher;
+    this.hasher = Poseidon.hash;
+    if (options.hasher !== undefined) {
+      this.hasher = options.hasher;
+    }
     this.hashValue = options.hashValue;
   }
 
   private getValueField(value?: V): Field {
     let valueHashOrValueField = EMPTY_VALUE;
-    if (value) {
+    if (value !== undefined) {
       let valueFields = value.toFields();
       valueHashOrValueField = valueFields[0];
       if (this.hashValue) {

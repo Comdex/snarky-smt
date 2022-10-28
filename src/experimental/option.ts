@@ -30,8 +30,9 @@ import { MemoryStore } from '../lib/store/memory_store';
 await isReady;
 
 const doProofs = true;
+const treeHeight = 3;
 
-class MerkleProof extends ProvableMerkleTreeUtils.MerkleProof(3) {}
+class MerkleProof extends ProvableMerkleTreeUtils.MerkleProof(treeHeight) {}
 
 // we need the initiate tree root in order to tell the contract about our off-chain storage
 let initialCommitment: Field = Field.zero;
@@ -72,7 +73,9 @@ class Leaderboard extends SmartContract {
     ).assertTrue();
 
     // Add a new account under the same numeric index.
-    let newCommitment = ProvableMerkleTreeUtils.computeRoot(proof, index, f);
+    let newCommitment = ProvableMerkleTreeUtils.computeRoot(proof, index, f, {
+      hashValue: false,
+    });
     this.commitment.set(newCommitment);
   }
 
@@ -90,12 +93,9 @@ class Leaderboard extends SmartContract {
     this.commitment.assertEquals(commitment);
 
     // we check that the account is within the committed Merkle Tree
-    ProvableMerkleTreeUtils.checkMembership(
-      proof,
-      commitment,
-      index,
-      f
-    ).assertTrue();
+    ProvableMerkleTreeUtils.checkMembership(proof, commitment, index, f, {
+      hashValue: false,
+    }).assertTrue();
     Circuit.asProver(() => {
       console.log('proof verify ok');
     });
@@ -107,7 +107,8 @@ class Leaderboard extends SmartContract {
     let newCommitment = ProvableMerkleTreeUtils.computeRoot(
       proof,
       index,
-      newField
+      newField,
+      { hashValue: false }
     );
     Circuit.asProver(() => {
       console.log('compute root ok');
@@ -135,7 +136,7 @@ let olivia = Field(4);
 // we now need "wrap" the Merkle tree around our off-chain storage
 // we initialize a new Merkle Tree with height 8
 let store = new MemoryStore<Field>();
-let tree = await MerkleTree.build<Field>(store, 3, {
+let tree = await MerkleTree.build<Field>(store, treeHeight, {
   hashValue: false,
 });
 

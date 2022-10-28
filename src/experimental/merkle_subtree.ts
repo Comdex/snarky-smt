@@ -23,7 +23,7 @@ await isReady;
 
 const doProofs = true;
 
-const treeHeight = 8;
+const treeHeight = 10;
 
 class MerkleProof extends ProvableMerkleTreeUtils.MerkleProof(treeHeight) {}
 
@@ -62,9 +62,9 @@ class TestZkapp extends SmartContract {
     //   Field,
     //   treeHeight
     // );
-    tree.addBranch(proof1, value1);
-    tree.addBranch(proof2, value2);
-    tree.addBranch(proof3, value3);
+    tree.addBranch(proof1, index1, value1);
+    tree.addBranch(proof2, index2, value2);
+    tree.addBranch(proof3, index3, value3);
 
     // tree.addBranch(proof1, Poseidon.hash([value1]));
     // tree.addBranch(proof2, Poseidon.hash([value2]));
@@ -98,7 +98,7 @@ const value1 = Field(33);
 const key2 = 1n;
 const value2 = Field(55);
 const key3 = 2n;
-const value3 = Field(9999999);
+const value3 = Field(999);
 
 let root = await tree.update(key1, value1);
 root = await tree.update(key2, value2);

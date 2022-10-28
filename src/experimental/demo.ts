@@ -52,4 +52,5 @@ finalRoot = deepSubTree.update(key2, Field(99));
 finalRoot = deepSubTree.update(key3, Field(1010));
 
 console.log('final root: ', finalRoot.toString());
+root.assertEquals(finalRoot);
 shutdown();
