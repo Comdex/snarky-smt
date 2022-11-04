@@ -19,7 +19,6 @@ const kvSchema = new Schema<IKV>({
 /**
  * Store based on MongoDB
  *
- * @export
  * @class MongoStore
  * @implements {Store<V>}
  * @template V

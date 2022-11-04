@@ -1,11 +1,12 @@
 import { Field, isReady, shutdown } from 'snarkyjs';
-import { CDeepSparseMerkleSubTree } from '../lib/compact_tree/deep_subtree';
-import { CSparseMerkleTree } from '../lib/compact_tree/smt';
+import { CompactDeepSparseMerkleSubTree } from '../lib/compact_smt/deep_subtree';
+import { CompactSparseMerkleTree } from '../lib/compact_smt/csmt';
+import { ProvableCSMTUtils } from '../lib/compact_smt/verify_circuit';
 import { MemoryStore } from '../lib/store/memory_store';
 
 await isReady;
 
-let tree = new CSparseMerkleTree<Field, Field>(new MemoryStore<Field>());
+let tree = new CompactSparseMerkleTree<Field, Field>(new MemoryStore<Field>());
 
 let root = await tree.update(Field(1), Field(2));
 root = await tree.update(Field(3), Field(4));
@@ -23,12 +24,22 @@ console.log('root2: ', root2.toString());
 // let ok = c_verifyProof(proof1, root, Field(1), Field(2));
 // console.log('ok: ', ok);
 
-let subTree = new CDeepSparseMerkleSubTree(new MemoryStore<Field>(), root);
+let subTree = new CompactDeepSparseMerkleSubTree(
+  new MemoryStore<Field>(),
+  root
+);
 await subTree.addBranch(proof1, Field(1), Field(2));
 await subTree.addBranch(proof2, Field(3), Field(4));
 
 let root3 = await subTree.update(Field(1), Field(5));
 root3 = await subTree.update(Field(3), Field(7));
 console.log('root3: ', root3.toString());
+
+// let updateRoot = ProvableCSMTUtils.computeRoot(
+//   proof1.sideNodes,
+//   Field(1),
+//   Field(5)
+// );
+// console.log('updateRoot: ', updateRoot.toString());
 
 shutdown();

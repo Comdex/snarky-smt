@@ -14,7 +14,6 @@ export { LevelStore };
 /**
  * Store based on leveldb
  *
- * @export
  * @class LevelStore
  * @implements {Store<V>}
  * @template V

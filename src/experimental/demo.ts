@@ -1,6 +1,7 @@
 import { Field, isReady, Poseidon, shutdown } from 'snarkyjs';
-import { NumIndexDeepSparseMerkleSubTree } from '../lib/deep_subtree';
-import { NumIndexSparseMerkleTree } from '../lib/numindex_smt';
+import { DeepMerkleSubTree } from '../lib/merkle/deep_subtree';
+import { MerkleTree } from '../lib/merkle/merkle_tree';
+import { MerkleTreeUtils } from '../lib/merkle/proofs';
 import { MemoryStore } from '../lib/store/memory_store';
 import { printBits } from '../lib/utils';
 
@@ -11,10 +12,7 @@ await isReady;
 // printBits(Field(2).toBits(), '2');
 
 const treeHeight = 5;
-let tree = await NumIndexSparseMerkleTree.buildNewTree<Field>(
-  new MemoryStore<Field>(),
-  treeHeight
-);
+let tree = await MerkleTree.build<Field>(new MemoryStore<Field>(), treeHeight);
 const key1 = 0n;
 const value1 = Field(33);
 const key2 = 1n;
@@ -37,21 +35,22 @@ root = await tree.update(key2, Field(99));
 root = await tree.update(key3, Field(1010));
 console.log('after root: ', root.toString());
 
-let deepSubTree = new NumIndexDeepSparseMerkleSubTree(proof1.root, treeHeight);
+let deepSubTree = new DeepMerkleSubTree(proof1.root, treeHeight);
 
-deepSubTree.addBranch(proof1, Poseidon.hash([value1]));
-deepSubTree.addBranch(proof2, Poseidon.hash([value2]));
-deepSubTree.addBranch(proof3, Poseidon.hash([value3]));
+deepSubTree.addBranch(proof1, key1, value1);
+deepSubTree.addBranch(proof2, key2, value2);
+deepSubTree.addBranch(proof3, key3, value3);
 
-let finalRoot = deepSubTree.update(proof1.path, Poseidon.hash([Field(88)]));
-let proofTemp = deepSubTree.prove(proof2.path);
-let tempOk = proofTemp.verify(finalRoot, value2);
+let finalRoot = deepSubTree.update(key1, Field(88));
+let proofTemp = deepSubTree.prove(key2);
+let tempOk = MerkleTreeUtils.verifyProof(proofTemp, finalRoot, key2, value2);
 console.log('tempOk: ', tempOk);
 
 // let proofTemp2 = deepSubTree.prove(Field(10));
 
-finalRoot = deepSubTree.update(proof2.path, Poseidon.hash([Field(99)]));
-finalRoot = deepSubTree.update(proof3.path, Poseidon.hash([Field(1010)]));
+finalRoot = deepSubTree.update(key2, Field(99));
+finalRoot = deepSubTree.update(key3, Field(1010));
 
 console.log('final root: ', finalRoot.toString());
+root.assertEquals(finalRoot);
 shutdown();

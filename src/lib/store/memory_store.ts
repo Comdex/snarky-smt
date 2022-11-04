@@ -17,7 +17,6 @@ const enum OperationType {
 /**
  * Store based on memory
  *
- * @export
  * @class MemoryStore
  * @implements {Store<V>}
  * @template V

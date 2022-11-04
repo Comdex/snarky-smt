@@ -1,21 +1,19 @@
 import { Field, Poseidon } from 'snarkyjs';
-import { RIGHT, SMT_DEPTH, SMT_EMPTY_VALUE } from './constant';
+import { EMPTY_VALUE, RIGHT, SMT_DEPTH } from '../constant';
+import { defaultNodes } from '../default_nodes';
+import { FieldElements, Hasher } from '../model';
+import { Store } from '../store/store';
 import {
-  compactProof,
-  Hasher,
+  SMTUtils,
   SparseCompactMerkleProof,
   SparseMerkleProof,
 } from './proofs';
-import { Store } from './store/store';
-import { defaultNodes } from './default_nodes';
-import { FieldElements } from './model';
 
 export { SparseMerkleTree };
 
 /**
  * Sparse Merkle Tree
  *
- * @export
  * @class SparseMerkleTree
  * @template K
  * @template V
@@ -34,6 +32,7 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
   protected root: Field;
   protected store: Store<V>;
   protected hasher: Hasher;
+  protected config: { hashKey: boolean; hashValue: boolean };
 
   /**
    * Build a new sparse merkle tree
@@ -42,17 +41,36 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
    * @template K
    * @template V
    * @param {Store<V>} store
-   * @param {Hasher} [hasher=Poseidon.hash]
+   * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
    * @return {*}  {Promise<SparseMerkleTree<K, V>>}
    * @memberof SparseMerkleTree
    */
-  public static async buildNewTree<
-    K extends FieldElements,
-    V extends FieldElements
-  >(
+  public static async build<K extends FieldElements, V extends FieldElements>(
     store: Store<V>,
-    hasher: Hasher = Poseidon.hash
+    options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
+      hasher: Poseidon.hash,
+      hashKey: true,
+      hashValue: true,
+    }
   ): Promise<SparseMerkleTree<K, V>> {
+    let hasher: Hasher = Poseidon.hash;
+    let config = { hashKey: true, hashValue: true };
+    if (options.hasher !== undefined) {
+      hasher = options.hasher;
+    }
+    if (options.hashKey !== undefined) {
+      config.hashKey = options.hashKey;
+    }
+    if (options.hashValue !== undefined) {
+      config.hashValue = options.hashValue;
+    }
+
     store.clearPrepareOperationCache();
     for (let i = 0; i < SMT_DEPTH; i++) {
       let keyNode = defaultNodes(hasher)[i];
@@ -65,7 +83,7 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     store.prepareUpdateRoot(root);
     await store.commit();
 
-    return new SparseMerkleTree(root, store, hasher);
+    return new SparseMerkleTree(root, store, hasher, config);
   }
 
   /**
@@ -75,26 +93,67 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
    * @template K
    * @template V
    * @param {Store<V>} store
-   * @param {Hasher} [hasher=Poseidon.hash]
+   * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
    * @return {*}  {Promise<SparseMerkleTree<K, V>>}
    * @memberof SparseMerkleTree
    */
-  public static async importTree<
-    K extends FieldElements,
-    V extends FieldElements
-  >(
+  public static async import<K extends FieldElements, V extends FieldElements>(
     store: Store<V>,
-    hasher: Hasher = Poseidon.hash
+    options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
+      hasher: Poseidon.hash,
+      hashKey: true,
+      hashValue: true,
+    }
   ): Promise<SparseMerkleTree<K, V>> {
+    let hasher: Hasher = Poseidon.hash;
+    let config = { hashKey: true, hashValue: true };
+    if (options.hasher !== undefined) {
+      hasher = options.hasher;
+    }
+    if (options.hashKey !== undefined) {
+      config.hashKey = options.hashKey;
+    }
+    if (options.hashValue !== undefined) {
+      config.hashValue = options.hashValue;
+    }
+
     const root: Field = await store.getRoot();
 
-    return new SparseMerkleTree(root, store, hasher);
+    return new SparseMerkleTree(root, store, hasher, config);
   }
 
-  private constructor(root: Field, store: Store<V>, hasher: Hasher) {
+  private constructor(
+    root: Field,
+    store: Store<V>,
+    hasher: Hasher,
+    config: { hashKey: boolean; hashValue: boolean }
+  ) {
     this.store = store;
     this.hasher = hasher;
+    this.config = config;
     this.root = root;
+  }
+
+  private getKeyField(key: K): Field {
+    let keyFields = key.toFields();
+    let keyHashOrKeyField = keyFields[0];
+    if (this.config.hashKey) {
+      keyHashOrKeyField = this.digest(keyFields);
+    } else {
+      if (keyFields.length > 1) {
+        throw new Error(
+          `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
+        );
+      }
+    }
+
+    return keyHashOrKeyField;
   }
 
   /**
@@ -173,7 +232,7 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
       return null;
     }
 
-    let path = this.digest(key.toFields());
+    let path = this.getKeyField(key);
 
     try {
       const value = await this.store.getValue(path);
@@ -283,7 +342,7 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
    */
   public async proveCompact(key: K): Promise<SparseCompactMerkleProof> {
     const proof = await this.prove(key);
-    return compactProof(proof, this.hasher);
+    return SMTUtils.compactProof(proof, this.hasher);
   }
 
   protected digest(data: Field[]): Field {
@@ -295,7 +354,8 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     key: K,
     value?: V
   ): Promise<Field> {
-    const path = this.digest(key.toFields());
+    let path = this.getKeyField(key);
+
     const { sideNodes, pathNodes, leafData } = await this.sideNodesForRoot(
       root,
       path
@@ -320,17 +380,30 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
   ): Field {
     let currentHash: Field;
     if (value !== undefined) {
-      currentHash = this.digest(value.toFields());
+      const valueFields = value.toFields();
+
+      if (this.config.hashValue) {
+        currentHash = this.digest(valueFields);
+      } else {
+        if (valueFields.length > 1) {
+          throw new Error(
+            `The length of value fields is greater than 1, the value needs to be hashed before it can be processed, option 'hashValue' must be set to true`
+          );
+        }
+
+        currentHash = valueFields[0];
+      }
+
       this.store.preparePutValue(path, value);
     } else {
-      currentHash = SMT_EMPTY_VALUE;
+      currentHash = EMPTY_VALUE;
       this.store.prepareDelValue(path);
     }
 
     if (oldLeafData.equals(currentHash).toBoolean()) {
       return this.root;
     } else {
-      if (!oldLeafData.equals(SMT_EMPTY_VALUE).toBoolean()) {
+      if (!oldLeafData.equals(EMPTY_VALUE).toBoolean()) {
         for (let i = 0, len = pathNodes.length; i < len; i++) {
           this.store.prepareDelNodes(pathNodes[i]);
         }
@@ -381,11 +454,11 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     }
 
     let leafData: Field;
-    if (!nodeHash.equals(SMT_EMPTY_VALUE).toBoolean()) {
+    if (!nodeHash.equals(EMPTY_VALUE).toBoolean()) {
       let leaf = await this.store.getNodes(nodeHash);
       leafData = leaf[0];
     } else {
-      leafData = SMT_EMPTY_VALUE;
+      leafData = EMPTY_VALUE;
     }
 
     return {
@@ -399,7 +472,8 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     root: Field,
     key: K
   ): Promise<SparseMerkleProof> {
-    const path = this.digest(key.toFields());
+    let path = this.getKeyField(key);
+
     const { sideNodes } = await this.sideNodesForRoot(root, path);
 
     return new SparseMerkleProof(sideNodes, root);

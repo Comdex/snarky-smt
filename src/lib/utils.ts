@@ -1,19 +1,7 @@
 import { AsFieldElements, Bool, CircuitValue, Field } from 'snarkyjs';
-import {
-  NumIndexSparseCompactMerkleProofJSON,
-  SparseCompactMerkleProofJSON,
-} from './model';
-import {
-  NumIndexSparseCompactMerkleProof,
-  SparseCompactMerkleProof,
-} from './proofs';
 
 export {
   createEmptyValue,
-  compactMerkleProofToJson,
-  compactNumIndexMerkleProofToJson,
-  jsonToCompactMerkleProof,
-  jsonToNumIndexCompactMerkleProof,
   fieldToHexString,
   hexStringToField,
   strToFieldArry,
@@ -25,7 +13,6 @@ export {
 /**
  * Create a empty value for a CircuitValue Type
  *
- * @export
  * @template T
  * @param {AsFieldElements<T>} valueType
  * @return {*}  {T}
@@ -46,105 +33,8 @@ function createEmptyValue<T extends CircuitValue>(
 }
 
 /**
- * Convert SparseCompactMerkleProof to JSONValue.
- *
- * @export
- * @param {SparseCompactMerkleProof} proof
- * @return {*}  {SparseCompactMerkleProofJSONValue}
- */
-function compactMerkleProofToJson(
-  proof: SparseCompactMerkleProof
-): SparseCompactMerkleProofJSON {
-  let sideNodesStrArr: string[] = [];
-  proof.sideNodes.forEach((v) => {
-    const str = fieldToHexString(v);
-    sideNodesStrArr.push(str);
-  });
-
-  return {
-    sideNodes: sideNodesStrArr,
-    bitMask: fieldToHexString(proof.bitMask),
-    root: fieldToHexString(proof.root),
-  };
-}
-
-/**
- * Convert NumIndexSparseCompactMerkleProof to JSONValue.
- *
- * @export
- * @param {NumIndexSparseCompactMerkleProof} proof
- * @return {*}  {NumIndexSparseCompactMerkleProofJSON}
- */
-function compactNumIndexMerkleProofToJson(
-  proof: NumIndexSparseCompactMerkleProof
-): NumIndexSparseCompactMerkleProofJSON {
-  let sideNodesStrArr: string[] = [];
-  proof.sideNodes.forEach((v) => {
-    const str = fieldToHexString(v);
-    sideNodesStrArr.push(str);
-  });
-
-  return {
-    height: proof.height,
-    root: fieldToHexString(proof.root),
-    path: fieldToHexString(proof.path),
-    sideNodes: sideNodesStrArr,
-    bitMask: fieldToHexString(proof.bitMask),
-  };
-}
-
-/**
- * Convert JSONValue to SparseCompactMerkleProof
- *
- * @export
- * @param {SparseCompactMerkleProofJSONValue} jsonValue
- * @return {*}  {SparseCompactMerkleProof}
- */
-function jsonToCompactMerkleProof(
-  jsonValue: SparseCompactMerkleProofJSON
-): SparseCompactMerkleProof {
-  let sideNodes: Field[] = [];
-  jsonValue.sideNodes.forEach((v) => {
-    const f = hexStringToField(v);
-    sideNodes.push(f);
-  });
-
-  return {
-    sideNodes,
-    bitMask: hexStringToField(jsonValue.bitMask),
-    root: hexStringToField(jsonValue.root),
-  };
-}
-
-/**
- * Convert JSONValue to NumIndexSparseCompactMerkleProof
- *
- * @export
- * @param {NumIndexSparseCompactMerkleProofJSON} jsonValue
- * @return {*}  {NumIndexSparseCompactMerkleProof}
- */
-function jsonToNumIndexCompactMerkleProof(
-  jsonValue: NumIndexSparseCompactMerkleProofJSON
-): NumIndexSparseCompactMerkleProof {
-  let sideNodes: Field[] = [];
-  jsonValue.sideNodes.forEach((v) => {
-    const f = hexStringToField(v);
-    sideNodes.push(f);
-  });
-
-  return {
-    height: jsonValue.height,
-    root: hexStringToField(jsonValue.root),
-    path: hexStringToField(jsonValue.path),
-    sideNodes,
-    bitMask: hexStringToField(jsonValue.bitMask),
-  };
-}
-
-/**
  * Convert field to hex string.
  *
- * @export
  * @param {Field} f
  * @return {*}  {string}
  */
@@ -155,7 +45,6 @@ function fieldToHexString(f: Field): string {
 /**
  * Convert hex strong to field.
  *
- * @export
  * @param {string} hexStr
  * @return {*}  {Field}
  */
@@ -166,7 +55,6 @@ function hexStringToField(hexStr: string): Field {
 /**
  * Convert a string to Field array.
  *
- * @export
  * @param {string} str
  * @return {*}  {Field[]}
  */
@@ -210,7 +98,6 @@ function countSetBits(data: Bool[]): number {
 /**
  * Print bits string.
  *
- * @export
  * @param {Bool[]} data
  */
 function printBits(data: Bool[], varName?: string) {

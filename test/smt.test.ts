@@ -1,13 +1,8 @@
 import { Circuit, Field, isReady, Poseidon, shutdown } from 'snarkyjs';
-import { SMT_EMPTY_VALUE } from '../src/lib/constant';
-import { decompactProof, verifyProof } from '../src/lib/proofs';
-import { SparseMerkleTree } from '../src/lib/smt';
 import { MemoryStore } from '../src/lib/store/memory_store';
-import { createEmptyValue } from '../src/lib/utils';
-import {
-  verifyProofByFieldInCircuit,
-  verifyProofInCircuit,
-} from '../src/lib/verify_circuit';
+import { SparseMerkleTree } from '../src/lib/smt/smt';
+import { SMTUtils } from '../src/lib/smt/proofs';
+import { ProvableSMTUtils } from '../src/lib/smt/verify_circuit';
 
 describe('SparseMerkleTree', () => {
   let tree: SparseMerkleTree<Field, Field>;
@@ -25,9 +20,7 @@ describe('SparseMerkleTree', () => {
 
   beforeEach(async () => {
     await isReady;
-    tree = await SparseMerkleTree.buildNewTree<Field, Field>(
-      new MemoryStore<Field>()
-    );
+    tree = await SparseMerkleTree.build<Field, Field>(new MemoryStore<Field>());
   });
 
   it('should create and verify proof correctly', async () => {
@@ -46,12 +39,12 @@ describe('SparseMerkleTree', () => {
     const root = tree.getRoot();
     for (let i = 0; i < updateTimes; i++) {
       const proof = await tree.prove(keys[i]);
-      expect(verifyProof(proof, root, keys[i], values[i]));
+      expect(SMTUtils.checkMembership(proof, root, keys[i], values[i]));
     }
 
     const key = Poseidon.hash(keys[0].toFields());
     const nonMembershipProof = await tree.prove(key);
-    expect(verifyProof(nonMembershipProof, root, key));
+    expect(SMTUtils.checkNonMembership(nonMembershipProof, root, key));
   });
 
   it('should delete element correctly', async () => {
@@ -61,7 +54,7 @@ describe('SparseMerkleTree', () => {
     const root = await tree.delete(x);
 
     const nonMembershipProof = await tree.prove(x);
-    expect(verifyProof(nonMembershipProof, root, x));
+    expect(SMTUtils.checkNonMembership(nonMembershipProof, root, x));
   });
 
   it('should get and check element correctly', async () => {
@@ -81,42 +74,33 @@ describe('SparseMerkleTree', () => {
     const root = await tree.update(x, y);
 
     const cproof = await tree.proveCompact(x);
-    const proof = decompactProof(cproof);
-    expect(verifyProof(proof, root, x, y));
+    const proof = SMTUtils.decompactProof(cproof);
+    expect(SMTUtils.checkMembership(proof, root, x, y));
   });
+
+  function log(...objs: any) {
+    Circuit.asProver(() => {
+      console.log(objs);
+    });
+  }
 
   it('should verify proof in circuit correctly', async () => {
     const x = Field(7);
     const y = Field(8);
-    const z = Poseidon.hash([Field(9)]);
+    const z = Field(9);
     const root = await tree.update(x, y);
 
     const cproof = await tree.proveCompact(x);
-    const proof = decompactProof(cproof);
+    const proof = SMTUtils.decompactProof(cproof);
 
     const zproof = await tree.prove(z);
 
     Circuit.runAndCheck(() => {
-      let ok = verifyProofInCircuit(proof, root, x, y, Field);
-      ok.assertEquals(true);
+      ProvableSMTUtils.checkNonMembership(zproof, root, z).assertTrue();
+      log('z nonMembership assert success');
 
-      ok = verifyProofInCircuit(
-        zproof,
-        root,
-        z,
-        createEmptyValue<Field>(Field),
-        Field
-      );
-      ok.assertEquals(true);
-
-      const xHash = Poseidon.hash([x]);
-      const yHash = Poseidon.hash([y]);
-      ok = verifyProofByFieldInCircuit(proof, root, xHash, yHash);
-      ok.assertEquals(true);
-
-      const zhash = Poseidon.hash([z]);
-      ok = verifyProofByFieldInCircuit(zproof, root, zhash, SMT_EMPTY_VALUE);
-      ok.assertEquals(true);
+      ProvableSMTUtils.checkMembership(proof, root, x, y).assertTrue();
+      log('x y membership assert success');
     });
   });
 });

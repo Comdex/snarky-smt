@@ -7,62 +7,41 @@ Merkle Trees give developers the power of storing large amounts of data off-chai
 */
 
 import {
-  SmartContract,
-  isReady,
-  shutdown,
-  Poseidon,
-  Field,
-  Permissions,
+  AccountUpdate,
+  Circuit,
   DeployArgs,
+  Field,
+  isReady,
+  method,
+  Mina,
+  Permissions,
+  Poseidon,
+  PrivateKey,
+  shutdown,
+  SmartContract,
   State,
   state,
-  CircuitValue,
-  PublicKey,
   UInt64,
-  prop,
-  Mina,
-  method,
-  UInt32,
-  PrivateKey,
-  AccountUpdate,
 } from 'snarkyjs';
-import { SMT_EMPTY_VALUE } from '../lib/constant';
-import { NumIndexSparseMerkleTree } from '../lib/numindex_smt';
-import { NumIndexSparseMerkleProof } from '../lib/proofs';
+import { MerkleTree } from '../lib/merkle/merkle_tree';
+import { ProvableMerkleTreeUtils } from '../lib/merkle/verify_circuit';
 import { MemoryStore } from '../lib/store/memory_store';
 
 await isReady;
 
 const doProofs = true;
+const treeHeight = 3;
 
-class MerkleProof extends NumIndexSparseMerkleProof(8) {}
+class MerkleProof extends ProvableMerkleTreeUtils.MerkleProof(treeHeight) {}
 
-class Account extends CircuitValue {
-  @prop publicKey: PublicKey;
-  @prop points: UInt32;
-
-  constructor(publicKey: PublicKey, points: UInt32) {
-    super(publicKey, points);
-    this.publicKey = publicKey;
-    this.points = points;
-  }
-
-  hash(): Field {
-    return Poseidon.hash(this.toFields());
-  }
-
-  addPoints(n: number): Account {
-    return new Account(this.publicKey, this.points.add(n));
-  }
-}
 // we need the initiate tree root in order to tell the contract about our off-chain storage
 let initialCommitment: Field = Field.zero;
 /*
-    We want to write a smart contract that serves as a leaderboard,
-    but only has the commitment of the off-chain storage stored in an on-chain variable.
-    The accounts of all participants will be stored off-chain!
-    If a participant can guess the preimage of a hash, they will be granted one point :)
-  */
+      We want to write a smart contract that serves as a leaderboard,
+      but only has the commitment of the off-chain storage stored in an on-chain variable.
+      The accounts of all participants will be stored off-chain!
+      If a participant can guess the preimage of a hash, they will be granted one point :)
+    */
 
 class Leaderboard extends SmartContract {
   // a commitment is a cryptographic primitive that allows us to commit to data, with the ability to "reveal" it later
@@ -80,27 +59,28 @@ class Leaderboard extends SmartContract {
 
   // If an account with this name does not exist, it is added as a new account (non-existence merkle proof)
   @method
-  addNewAccount(account: Account, proof: MerkleProof) {
+  addNewField(index: Field, f: Field, proof: MerkleProof) {
     // we fetch the on-chain commitment
     let commitment = this.commitment.get();
     this.commitment.assertEquals(commitment);
 
     // We need to prove that the numerically indexed account does not exist in the merkle tree.
-    // Or you can use generic methods
-    // const emptyAccount = createEmptyValue(Account);
-    // proof
-    //   .verifyInCircuit<Account>(commitment, emptyAccount, Account)
-    //   .assertTrue();
 
-    proof.verifyByFieldInCircuit(commitment, SMT_EMPTY_VALUE).assertTrue();
+    ProvableMerkleTreeUtils.checkNonMembership(
+      proof,
+      commitment,
+      index
+    ).assertTrue();
 
     // Add a new account under the same numeric index.
-    let newCommitment = proof.computeRootByFieldInCircuit(account.hash());
+    let newCommitment = ProvableMerkleTreeUtils.computeRoot(proof, index, f, {
+      hashValue: false,
+    });
     this.commitment.set(newCommitment);
   }
 
   @method
-  guessPreimage(guess: Field, account: Account, proof: MerkleProof) {
+  guessPreimage(guess: Field, index: Field, f: Field, proof: MerkleProof) {
     // this is our hash! its the hash of the preimage "22", but keep it a secret!
     let target = Field(
       '17057234437185175411792943285768571642343179330449434169483610110583519635705'
@@ -113,14 +93,26 @@ class Leaderboard extends SmartContract {
     this.commitment.assertEquals(commitment);
 
     // we check that the account is within the committed Merkle Tree
-    proof.verifyByFieldInCircuit(commitment, account.hash()).assertTrue();
-    //proof.computeRootByFieldInCircuit(account.hash()).assertEquals(commitment);
+    ProvableMerkleTreeUtils.checkMembership(proof, commitment, index, f, {
+      hashValue: false,
+    }).assertTrue();
+    Circuit.asProver(() => {
+      console.log('proof verify ok');
+    });
 
     // we update the account and grant one point!
-    let newAccount = account.addPoints(1);
+    let newField = f.add(1);
 
     // we calculate the new Merkle Root, based on the account changes
-    let newCommitment = proof.computeRootByFieldInCircuit(newAccount.hash());
+    let newCommitment = ProvableMerkleTreeUtils.computeRoot(
+      proof,
+      index,
+      newField,
+      { hashValue: false }
+    );
+    Circuit.asProver(() => {
+      console.log('compute root ok');
+    });
 
     this.commitment.set(newCommitment);
   }
@@ -136,15 +128,17 @@ let feePayer = Local.testAccounts[0].privateKey;
 let zkappKey = PrivateKey.random();
 let zkappAddress = zkappKey.toPublicKey();
 
-let bob = new Account(Local.testAccounts[0].publicKey, UInt32.from(0));
-let alice = new Account(Local.testAccounts[1].publicKey, UInt32.from(0));
-let charlie = new Account(Local.testAccounts[2].publicKey, UInt32.from(0));
-let olivia = new Account(Local.testAccounts[3].publicKey, UInt32.from(5));
+let bob = Field(1);
+let alice = Field(2);
+let charlie = Field(3);
+let olivia = Field(4);
 
 // we now need "wrap" the Merkle tree around our off-chain storage
 // we initialize a new Merkle Tree with height 8
-let store = new MemoryStore<Account>();
-let tree = await NumIndexSparseMerkleTree.buildNewTree<Account>(store, 8);
+let store = new MemoryStore<Field>();
+let tree = await MerkleTree.build<Field>(store, treeHeight, {
+  hashValue: false,
+});
 
 await tree.update(0n, bob);
 await tree.update(1n, alice);
@@ -158,7 +152,9 @@ console.log('initialCommitment: ', initialCommitment.toString());
 let leaderboardZkApp = new Leaderboard(zkappAddress);
 console.log('Deploying leaderboard..');
 if (doProofs) {
+  console.time('compile');
   await Leaderboard.compile();
+  console.timeEnd('compile');
 }
 let tx = await Mina.transaction(feePayer, () => {
   AccountUpdate.fundNewAccount(feePayer, { initialBalance });
@@ -166,24 +162,24 @@ let tx = await Mina.transaction(feePayer, () => {
 });
 tx.send();
 
-console.log('Initial points: ' + (await tree.get(0n))?.points);
+console.log('Initial f: ' + (await tree.get(0n))?.toString());
 
 console.log('Making guess..');
 await makeGuess(0n, 22);
 
-console.log('Final points: ' + (await tree.get(0n))?.points);
+console.log('Final f: ' + (await tree.get(0n))?.toString());
 
-await addNewAccount(3n, olivia);
+await addNewField(3n, olivia);
 
-console.log('Final Olivia points: ' + (await tree.get(3n))?.points);
+console.log('Final Olivia f: ' + (await tree.get(3n))?.toString());
 
 shutdown();
 
-async function addNewAccount(index: bigint, account: Account) {
+async function addNewField(index: bigint, f: Field) {
   let merkleProof = await tree.prove(index);
 
   let tx = await Mina.transaction(feePayer, () => {
-    leaderboardZkApp.addNewAccount(account, merkleProof);
+    leaderboardZkApp.addNewField(Field(index), f, merkleProof);
     if (!doProofs) leaderboardZkApp.sign(zkappKey);
   });
   if (doProofs) {
@@ -191,29 +187,31 @@ async function addNewAccount(index: bigint, account: Account) {
   }
   tx.send();
 
-  await tree.update(index, account!);
+  await tree.update(index, f!);
   leaderboardZkApp.commitment.get().assertEquals(tree.getRoot());
 }
 
 async function makeGuess(index: bigint, guess: number) {
-  let account = await tree.get(index);
+  let f = await tree.get(index);
+  console.log('f: ', f?.toString());
   let proof = await tree.prove(index);
+  console.log('proofJSON: ', proof.toJSON());
   console.log('proof root: ', proof.root.toString());
 
   console.log('proof height: ', proof.height());
 
   let tx = await Mina.transaction(feePayer, () => {
-    leaderboardZkApp.guessPreimage(Field(guess), account!, proof);
+    leaderboardZkApp.guessPreimage(Field(guess), Field(index), f!, proof);
     if (!doProofs) leaderboardZkApp.sign(zkappKey);
   });
   if (doProofs) {
     await tx.prove();
   }
   tx.send();
-
+  console.log('proof ok');
   // if the transaction was successful, we can update our off-chain storage as well
-  account!.points = account!.points.add(1);
-  await tree.update(index, account!);
+  let newField = f!.add(1);
+  await tree.update(index, newField!);
   console.log('final tree root: ', tree.getRoot().toString());
   leaderboardZkApp.commitment.get().assertEquals(tree.getRoot());
 }

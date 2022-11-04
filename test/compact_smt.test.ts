@@ -1,15 +1,11 @@
 import { Circuit, Field, isReady, Poseidon, shutdown } from 'snarkyjs';
-import { CSparseMerkleTree } from '../src/lib/compact_tree/smt';
+import { CSMTUtils } from '../src/lib/compact_smt/proofs';
+import { CompactSparseMerkleTree } from '../src/lib/compact_smt/csmt';
+import { ProvableCSMTUtils } from '../src/lib/compact_smt/verify_circuit';
 import { MemoryStore } from '../src/lib/store/memory_store';
-import {
-  c_decompactProof,
-  c_verifyProof,
-} from '../src/lib/compact_tree/proofs';
-import { c_verifyProofInCircuit } from '../src/lib/compact_tree/verify_circuit';
-import { createEmptyValue } from '../src/lib/utils';
 
-describe('CSparseMerkleTree', () => {
-  let tree: CSparseMerkleTree<Field, Field>;
+describe('CompactSparseMerkleTree', () => {
+  let tree: CompactSparseMerkleTree<Field, Field>;
 
   // beforeAll(async () => {
   //   await isReady;
@@ -24,7 +20,7 @@ describe('CSparseMerkleTree', () => {
 
   beforeEach(async () => {
     await isReady;
-    tree = new CSparseMerkleTree<Field, Field>(new MemoryStore<Field>());
+    tree = new CompactSparseMerkleTree<Field, Field>(new MemoryStore<Field>());
   });
 
   it('should create and verify proof correctly', async () => {
@@ -43,12 +39,12 @@ describe('CSparseMerkleTree', () => {
     const root = tree.getRoot();
     for (let i = 0; i < updateTimes; i++) {
       const proof = await tree.prove(keys[i]);
-      expect(c_verifyProof<Field, Field>(proof, root, keys[i], values[i]));
+      expect(CSMTUtils.checkMemebership(proof, root, keys[i], values[i]));
     }
 
     const key = Poseidon.hash(keys[0].toFields());
     const nonMembershipProof = await tree.prove(key);
-    expect(c_verifyProof<Field, Field>(nonMembershipProof, root, key));
+    expect(CSMTUtils.checkNonMemebership(nonMembershipProof, root, key));
   });
 
   it('should delete element correctly', async () => {
@@ -58,7 +54,7 @@ describe('CSparseMerkleTree', () => {
     const root = await tree.delete(x);
 
     const nonMembershipProof = await tree.prove(x);
-    expect(c_verifyProof<Field, Field>(nonMembershipProof, root, x));
+    expect(CSMTUtils.checkNonMemebership(nonMembershipProof, root, x));
   });
 
   it('should get and check element correctly', async () => {
@@ -78,9 +74,9 @@ describe('CSparseMerkleTree', () => {
     const root = await tree.update(x, y);
 
     const cproof = await tree.proveCompact(x);
-    const proof = c_decompactProof(cproof);
+    const proof = CSMTUtils.decompactProof(cproof);
 
-    expect(c_verifyProof<Field, Field>(proof, root, x, y));
+    expect(CSMTUtils.checkMemebership<Field, Field>(proof, root, x, y));
   });
 
   it('should create updatable proof correctly', async () => {
@@ -93,27 +89,27 @@ describe('CSparseMerkleTree', () => {
     expect(!th.isEmptyData(proof.siblingData));
   });
 
+  function log(...objs: any) {
+    Circuit.asProver(() => {
+      console.log(objs);
+    });
+  }
+
   it('should verify proof in circuit correctly', async () => {
     const x = Field(7);
     const y = Field(8);
-    const z = Poseidon.hash([Field(9)]);
+    const z = Field(9);
     const root = await tree.update(x, y);
     const cproof = await tree.proveCompact(x);
-    const proof = c_decompactProof(cproof);
+    const proof = CSMTUtils.decompactProof(cproof);
     const zproof = await tree.prove(z);
 
     Circuit.runAndCheck(() => {
-      let ok = c_verifyProofInCircuit<Field, Field>(proof, root, x, y, Field);
-      console.log(ok.toString());
-      ok.assertEquals(true);
+      ProvableCSMTUtils.checkMembership(proof, root, x, y).assertTrue();
+      log('x y membership assert success');
 
-      c_verifyProofInCircuit<Field, Field>(
-        zproof,
-        root,
-        z,
-        createEmptyValue<Field>(Field),
-        Field
-      ).assertTrue();
+      ProvableCSMTUtils.checkNonMembership(zproof, root, z).assertTrue();
+      log('z nonMembership assert success');
     });
   });
 });
