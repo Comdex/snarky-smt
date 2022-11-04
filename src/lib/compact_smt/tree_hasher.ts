@@ -9,13 +9,34 @@ const emptyPrefix = Field(0);
 const leafPrefix = Field(1);
 const nodePrefix = Field(2);
 
+/**
+ * Tree Hasher
+ *
+ * @class TreeHasher
+ * @template K
+ * @template V
+ */
 class TreeHasher<K extends FieldElements, V extends FieldElements> {
   private hasher: Hasher;
 
+  /**
+   * Creates an instance of TreeHasher.
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @memberof TreeHasher
+   */
   constructor(hasher: Hasher = Poseidon.hash) {
     this.hasher = hasher;
   }
 
+  /**
+   * Tree Hasher based on Poseidon.hash
+   *
+   * @static
+   * @template K
+   * @template V
+   * @return {*}  {TreeHasher<K, V>}
+   * @memberof TreeHasher
+   */
   static poseidon<
     K extends FieldElements,
     V extends FieldElements

@@ -13,7 +13,6 @@ export {
 /**
  * Create a empty value for a CircuitValue Type
  *
- * @export
  * @template T
  * @param {AsFieldElements<T>} valueType
  * @return {*}  {T}
@@ -36,7 +35,6 @@ function createEmptyValue<T extends CircuitValue>(
 /**
  * Convert field to hex string.
  *
- * @export
  * @param {Field} f
  * @return {*}  {string}
  */
@@ -47,7 +45,6 @@ function fieldToHexString(f: Field): string {
 /**
  * Convert hex strong to field.
  *
- * @export
  * @param {string} hexStr
  * @return {*}  {Field}
  */
@@ -58,7 +55,6 @@ function hexStringToField(hexStr: string): Field {
 /**
  * Convert a string to Field array.
  *
- * @export
  * @param {string} str
  * @return {*}  {Field[]}
  */
@@ -102,7 +98,6 @@ function countSetBits(data: Bool[]): number {
 /**
  * Print bits string.
  *
- * @export
  * @param {Bool[]} data
  */
 function printBits(data: Bool[], varName?: string) {

@@ -14,7 +14,6 @@ export { SparseMerkleTree };
 /**
  * Sparse Merkle Tree
  *
- * @export
  * @class SparseMerkleTree
  * @template K
  * @template V
@@ -46,7 +45,9 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
    *       hasher: Poseidon.hash,
    *       hashKey: true,
    *       hashValue: true,
-   *     }]
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
    * @return {*}  {Promise<SparseMerkleTree<K, V>>}
    * @memberof SparseMerkleTree
    */
@@ -96,7 +97,9 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
    *       hasher: Poseidon.hash,
    *       hashKey: true,
    *       hashValue: true,
-   *     }]
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
    * @return {*}  {Promise<SparseMerkleTree<K, V>>}
    * @memberof SparseMerkleTree
    */

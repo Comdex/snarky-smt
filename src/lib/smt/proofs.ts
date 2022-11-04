@@ -10,7 +10,6 @@ export type { SparseCompactMerkleProof, SparseCompactMerkleProofJSON };
 /**
  * Merkle proof CircuitValue for an element in a SparseMerkleTree.
  *
- * @export
  * @class SparseMerkleProof
  * @extends {CircuitValue}
  */
@@ -28,7 +27,6 @@ class SparseMerkleProof extends CircuitValue {
 /**
  * Compacted Merkle proof for an element in a SparseMerkleTree
  *
- * @export
  * @interface SparseCompactMerkleProof
  */
 interface SparseCompactMerkleProof {
@@ -37,20 +35,30 @@ interface SparseCompactMerkleProof {
   root: Field;
 }
 
-// A type used to support serialization to json for SparseCompactMerkleProof.
+/**
+ * A type used to support serialization to json for SparseCompactMerkleProof.
+ *
+ * @interface SparseCompactMerkleProofJSON
+ */
 interface SparseCompactMerkleProofJSON {
   sideNodes: string[];
   bitMask: string;
   root: string;
 }
 
+/**
+ * Collection of utility functions for sparse merkle tree
+ *
+ * @class SMTUtils
+ */
 class SMTUtils {
   /**
    * Convert SparseCompactMerkleProof to JSONValue.
    *
-   * @export
+   * @static
    * @param {SparseCompactMerkleProof} proof
-   * @return {*}  {SparseCompactMerkleProofJSONValue}
+   * @return {*}  {SparseCompactMerkleProofJSON}
+   * @memberof SMTUtils
    */
   static sparseCompactMerkleProofToJson(
     proof: SparseCompactMerkleProof
@@ -71,9 +79,10 @@ class SMTUtils {
   /**
    * Convert JSONValue to SparseCompactMerkleProof
    *
-   * @export
-   * @param {SparseCompactMerkleProofJSONValue} jsonValue
+   * @static
+   * @param {SparseCompactMerkleProofJSON} jsonValue
    * @return {*}  {SparseCompactMerkleProof}
+   * @memberof SMTUtils
    */
   static jsonToSparseCompactMerkleProof(
     jsonValue: SparseCompactMerkleProofJSON
@@ -94,17 +103,21 @@ class SMTUtils {
   /**
    * Calculate new root based on sideNodes, key and value
    *
+   * @static
    * @template K
    * @template V
    * @param {Field[]} sideNodes
    * @param {K} key
    * @param {V} [value]
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
-   *     hasher: Poseidon.hash,
-   *     hashKey: true,
-   *     hashValue: true,
-   *   }]
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
    * @return {*}  {Field}
+   * @memberof SMTUtils
    */
   static computeRoot<K extends FieldElements, V extends FieldElements>(
     sideNodes: Field[],
@@ -153,6 +166,26 @@ class SMTUtils {
     return currentHash;
   }
 
+  /**
+   * Returns true if the value is in the tree and it is at the index from the key
+   *
+   * @static
+   * @template K
+   * @template V
+   * @param {SparseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {K} key
+   * @param {V} value
+   * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
+   * @return {*}  {boolean}
+   * @memberof SMTUtils
+   */
   static checkMembership<K extends FieldElements, V extends FieldElements>(
     proof: SparseMerkleProof,
     expectedRoot: Field,
@@ -167,6 +200,25 @@ class SMTUtils {
     return this.verifyProof<K, V>(proof, expectedRoot, key, value, options);
   }
 
+  /**
+   * Returns true if there is no value at the index from the key
+   *
+   * @static
+   * @template K
+   * @template V
+   * @param {SparseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {K} key
+   * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
+   * @return {*}  {boolean}
+   * @memberof SMTUtils
+   */
   static checkNonMembership<K extends FieldElements, V extends FieldElements>(
     proof: SparseMerkleProof,
     expectedRoot: Field,
@@ -183,6 +235,7 @@ class SMTUtils {
   /**
    * Verify a merkle proof
    *
+   * @static
    * @template K
    * @template V
    * @param {SparseMerkleProof} proof
@@ -190,11 +243,14 @@ class SMTUtils {
    * @param {K} key
    * @param {V} [value]
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
-   *     hasher: Poseidon.hash,
-   *     hashKey: true,
-   *     hashValue: true,
-   *   }]
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
    * @return {*}  {boolean}
+   * @memberof SMTUtils
    */
   static verifyProof<K extends FieldElements, V extends FieldElements>(
     proof: SparseMerkleProof,
@@ -218,6 +274,7 @@ class SMTUtils {
   /**
    * Verify a compacted merkle proof
    *
+   * @static
    * @template K
    * @template V
    * @param {SparseCompactMerkleProof} cproof
@@ -225,11 +282,14 @@ class SMTUtils {
    * @param {K} key
    * @param {V} [value]
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
-   *     hasher: Poseidon.hash,
-   *     hashKey: true,
-   *     hashValue: true,
-   *   }]
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
    * @return {*}  {boolean}
+   * @memberof SMTUtils
    */
   static verifyCompactProof<K extends FieldElements, V extends FieldElements>(
     cproof: SparseCompactMerkleProof,
@@ -249,10 +309,11 @@ class SMTUtils {
   /**
    * Compact a proof to reduce its size
    *
-   * @export
+   * @static
    * @param {SparseMerkleProof} proof
    * @param {Hasher} [hasher=Poseidon.hash]
    * @return {*}  {SparseCompactMerkleProof}
+   * @memberof SMTUtils
    */
   static compactProof(
     proof: SparseMerkleProof,
@@ -283,10 +344,11 @@ class SMTUtils {
   /**
    * Decompact a proof
    *
-   * @export
+   * @static
    * @param {SparseCompactMerkleProof} proof
    * @param {Hasher} [hasher=Poseidon.hash]
    * @return {*}  {SparseMerkleProof}
+   * @memberof SMTUtils
    */
   static decompactProof(
     proof: SparseCompactMerkleProof,

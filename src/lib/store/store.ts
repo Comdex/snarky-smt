@@ -6,7 +6,6 @@ export type { Store };
 /**
  * Store is a key-value store interface
  *
- * @export
  * @interface Store
  * @template V
  */

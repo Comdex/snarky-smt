@@ -18,9 +18,8 @@ export { CompactSparseMerkleProof, CSMTUtils };
 export type { CSparseCompactMerkleProof };
 
 /**
- * Proof for Compact Sparse Merkle Tree
+ * Proof for compact sparse merkle tree
  *
- * @export
  * @class CompactSparseMerkleProof
  * @extends {CircuitValue}
  */
@@ -55,9 +54,8 @@ class CompactSparseMerkleProof extends CircuitValue {
 }
 
 /**
- * SparseCompactMerkleProof for Compact Sparse Merkle Tree
+ * SparseCompactMerkleProof for compact sparse merkle tree
  *
- * @export
  * @interface CSparseCompactMerkleProof
  */
 interface CSparseCompactMerkleProof {
@@ -69,11 +67,16 @@ interface CSparseCompactMerkleProof {
   root: Field;
 }
 
+/**
+ * Collection of utility functions for compact sparse merkle tree
+ *
+ * @class CSMTUtils
+ */
 class CSMTUtils {
   /**
    * Verify Compact Proof for Compact Sparse Merkle Tree
    *
-   * @export
+   * @static
    * @template K
    * @template V
    * @param {CSparseCompactMerkleProof} cproof
@@ -81,11 +84,14 @@ class CSMTUtils {
    * @param {K} key
    * @param {V} [value]
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
-   *     hasher: Poseidon.hash,
-   *     hashKey: true,
-   *     hashValue: true,
-   *   }]
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
    * @return {*}  {boolean}
+   * @memberof CSMTUtils
    */
   static verifyCompactProof<K extends FieldElements, V extends FieldElements>(
     cproof: CSparseCompactMerkleProof,
@@ -102,6 +108,29 @@ class CSMTUtils {
     return this.verifyProof<K, V>(proof, expectedRoot, key, value, options);
   }
 
+  /**
+   * Verify a merkle proof, return result and updates.
+   *
+   * @static
+   * @template K
+   * @template V
+   * @param {CompactSparseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {K} key
+   * @param {V} [value]
+   * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
+   * @return {*}  {({
+   *     ok: boolean;
+   *     updates: [Field, Field[]][] | null;
+   *   })}
+   * @memberof CSMTUtils
+   */
   static verifyProofWithUpdates<
     K extends FieldElements,
     V extends FieldElements
@@ -221,6 +250,26 @@ class CSMTUtils {
     };
   }
 
+  /**
+   * Returns true if the value is in the tree and it is at the index from the key
+   *
+   * @static
+   * @template K
+   * @template V
+   * @param {CompactSparseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {K} key
+   * @param {V} [value]
+   * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
+   * @return {*}  {boolean}
+   * @memberof CSMTUtils
+   */
   static checkMemebership<K extends FieldElements, V extends FieldElements>(
     proof: CompactSparseMerkleProof,
     expectedRoot: Field,
@@ -235,23 +284,43 @@ class CSMTUtils {
     return this.verifyProof<K, V>(proof, expectedRoot, key, value, options);
   }
 
+  /**
+   * Returns true if there is no value at the index from the key
+   *
+   * @static
+   * @template K
+   * @template V
+   * @param {CompactSparseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {K} key
+   * @param {{ hasher: Hasher; hashKey: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash;
+   * hashKey: whether to hash the key, the default is true
+   * @return {*}  {boolean}
+   * @memberof CSMTUtils
+   */
   static checkNonMemebership<K extends FieldElements, V extends FieldElements>(
     proof: CompactSparseMerkleProof,
     expectedRoot: Field,
     key: K,
-    options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
+    options: { hasher: Hasher; hashKey: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
-      hashValue: true,
     }
   ): boolean {
-    return this.verifyProof<K, V>(proof, expectedRoot, key, undefined, options);
+    return this.verifyProof<K, V>(proof, expectedRoot, key, undefined, {
+      hasher: options.hasher,
+      hashKey: options.hashKey,
+      hashValue: true,
+    });
   }
 
   /**
    * Verify Proof of Compact Sparse Merkle Tree
    *
-   * @export
+   * @static
    * @template K
    * @template V
    * @param {CompactSparseMerkleProof} proof
@@ -259,11 +328,14 @@ class CSMTUtils {
    * @param {K} key
    * @param {V} [value]
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
-   *     hasher: Poseidon.hash,
-   *     hashKey: true,
-   *     hashValue: true,
-   *   }]
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
    * @return {*}  {boolean}
+   * @memberof CSMTUtils
    */
   static verifyProof<K extends FieldElements, V extends FieldElements>(
     proof: CompactSparseMerkleProof,
@@ -289,10 +361,11 @@ class CSMTUtils {
   /**
    * Compact proof Of Compact Sparse Merkle Tree
    *
-   * @export
+   * @static
    * @param {CompactSparseMerkleProof} proof
    * @param {Hasher} [hasher=Poseidon.hash]
    * @return {*}  {CSparseCompactMerkleProof}
+   * @memberof CSMTUtils
    */
   static compactProof(
     proof: CompactSparseMerkleProof,
@@ -330,10 +403,11 @@ class CSMTUtils {
   /**
    * Decompact compact proof of Compact Sparse Merkle Tree
    *
-   * @export
+   * @static
    * @param {CSparseCompactMerkleProof} proof
    * @param {Hasher} [hasher=Poseidon.hash]
-   * @return {*}  {CSparseMerkleProof}
+   * @return {*}  {CompactSparseMerkleProof}
+   * @memberof CSMTUtils
    */
   static decompactProof(
     proof: CSparseCompactMerkleProof,

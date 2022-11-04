@@ -10,7 +10,6 @@ export { RocksStore };
 /**
  * Store based on rocksdb
  *
- * @export
  * @class RocksStore
  * @implements {Store<V>}
  * @template V

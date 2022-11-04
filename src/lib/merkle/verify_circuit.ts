@@ -5,15 +5,27 @@ import { BaseMerkleProof } from './proofs';
 
 export { ProvableMerkleTreeUtils };
 
+/**
+ * Collection of utility functions for merkle tree in the circuit.
+ *
+ * @class ProvableMerkleTreeUtils
+ */
 class ProvableMerkleTreeUtils {
+  /**
+   * Empty value for merkle tree
+   *
+   * @static
+   * @memberof ProvableMerkleTreeUtils
+   */
   static EMPTY_VALUE = EMPTY_VALUE;
 
   /**
    * Create a meerkle proof circuit value type based on the specified tree height.
    *
-   * @export
+   * @static
    * @param {number} height
-   * @return {*}  {typeof MerkleProof}
+   * @return {*}  {typeof BaseMerkleProof}
+   * @memberof ProvableMerkleTreeUtils
    */
   static MerkleProof(height: number): typeof BaseMerkleProof {
     class MerkleProof_ extends BaseMerkleProof {
@@ -28,18 +40,20 @@ class ProvableMerkleTreeUtils {
 
     return MerkleProof_;
   }
+
   /**
-   * Calculate new root based on index and value in circuit.
+   * Calculate new root based on index and value.
    *
    * @static
    * @template V
    * @param {BaseMerkleProof} proof
    * @param {Field} index
    * @param {V} value
-   * @param {{ hasher: Hasher; hashValue: boolean }} [options={
+   * @param {{ hasher?: Hasher; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
-   *     }]
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash;
+   * hashValue: whether to hash the value, the default is true.
    * @return {*}  {Field}
    * @memberof ProvableMerkleTreeUtils
    */
@@ -70,6 +84,23 @@ class ProvableMerkleTreeUtils {
     );
   }
 
+  /**
+   * Returns true if the value is in the tree and it is at the index from the key
+   *
+   * @static
+   * @template V
+   * @param {BaseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {Field} index
+   * @param {V} value
+   * @param {{ hasher?: Hasher; hashValue: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash;
+   * hashValue: whether to hash the value, the default is true.
+   * @return {*}  {Bool}
+   * @memberof ProvableMerkleTreeUtils
+   */
   static checkMembership<V extends FieldElements>(
     proof: BaseMerkleProof,
     expectedRoot: Field,
@@ -84,6 +115,17 @@ class ProvableMerkleTreeUtils {
     return expectedRoot.equals(currentRoot);
   }
 
+  /**
+   * Returns true if there is no value at the index from the key
+   *
+   * @static
+   * @param {BaseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {Field} index
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {Bool}
+   * @memberof ProvableMerkleTreeUtils
+   */
   static checkNonMembership(
     proof: BaseMerkleProof,
     expectedRoot: Field,

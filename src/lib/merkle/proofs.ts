@@ -14,7 +14,6 @@ export type { CompactMerkleProof, CompactMerkleProofJSON };
 /**
  *  Merkle proof CircuitValue for an element in a MerkleTree.
  *
- * @export
  * @class BaseMerkleProof
  * @extends {CircuitValue}
  */
@@ -45,7 +44,6 @@ class BaseMerkleProof extends CircuitValue {
 /**
  * Compacted Merkle proof for an element in a MerkleTree
  *
- * @export
  * @interface CompactMerkleProof
  */
 interface CompactMerkleProof {
@@ -58,7 +56,6 @@ interface CompactMerkleProof {
 /**
  * A type used to support serialization to json for CompactMerkleProof.
  *
- * @export
  * @interface CompactMerkleProofJSON
  */
 interface CompactMerkleProofJSON {
@@ -68,14 +65,20 @@ interface CompactMerkleProofJSON {
   bitMask: string;
 }
 
+/**
+ * Collection of utility functions for merkle tree
+ *
+ * @class MerkleTreeUtils
+ */
 class MerkleTreeUtils {
   /**
    * Compact a merkle proof to reduce its size
    *
-   * @export
+   * @static
    * @param {BaseMerkleProof} proof
    * @param {Hasher} [hasher=Poseidon.hash]
    * @return {*}  {CompactMerkleProof}
+   * @memberof MerkleTreeUtils
    */
   static compactMerkleProof(
     proof: BaseMerkleProof,
@@ -108,10 +111,11 @@ class MerkleTreeUtils {
   /**
    * Decompact a CompactMerkleProof.
    *
-   * @export
+   * @static
    * @param {CompactMerkleProof} proof
    * @param {Hasher} [hasher=Poseidon.hash]
    * @return {*}  {BaseMerkleProof}
+   * @memberof MerkleTreeUtils
    */
   static decompactMerkleProof(
     proof: CompactMerkleProof,
@@ -143,9 +147,10 @@ class MerkleTreeUtils {
   /**
    * Convert CompactMerkleProof to JSONValue.
    *
-   * @export
+   * @static
    * @param {CompactMerkleProof} proof
    * @return {*}  {CompactMerkleProofJSON}
+   * @memberof MerkleTreeUtils
    */
   static compactMerkleProofToJson(
     proof: CompactMerkleProof
@@ -163,9 +168,10 @@ class MerkleTreeUtils {
   /**
    * Convert JSONValue to CompactMerkleProof
    *
-   * @export
+   * @static
    * @param {CompactMerkleProofJSON} jsonValue
    * @return {*}  {CompactMerkleProof}
+   * @memberof MerkleTreeUtils
    */
   static jsonToCompactMerkleProof(
     jsonValue: CompactMerkleProofJSON
@@ -183,14 +189,18 @@ class MerkleTreeUtils {
   /**
    * Calculate new root based on value. Note: This method cannot be executed in a circuit.
    *
+   * @static
    * @template V
+   * @param {BaseMerkleProof} proof
+   * @param {bigint} index
    * @param {V} [value]
    * @param {{ hasher: Hasher; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
-   *     }]
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash;
+   * hashValue: whether to hash the value, the default is true.
    * @return {*}  {Field}
-   * @memberof BaseNumIndexSparseMerkleProof
+   * @memberof MerkleTreeUtils
    */
   static computeRoot<V extends FieldElements>(
     proof: BaseMerkleProof,
@@ -239,6 +249,23 @@ class MerkleTreeUtils {
     return currentHash;
   }
 
+  /**
+   * Returns true if the value is in the tree and it is at the index from the key
+   *
+   * @static
+   * @template V
+   * @param {BaseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {bigint} index
+   * @param {V} value
+   * @param {{ hasher: Hasher; hashValue: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash;
+   * hashValue: whether to hash the value, the default is true.
+   * @return {*}  {boolean}
+   * @memberof MerkleTreeUtils
+   */
   static checkMembership<V extends FieldElements>(
     proof: BaseMerkleProof,
     expectedRoot: Field,
@@ -252,30 +279,46 @@ class MerkleTreeUtils {
     return this.verifyProof<V>(proof, expectedRoot, index, value, options);
   }
 
+  /**
+   * Returns true if there is no value at the index from the key
+   *
+   * @static
+   * @template V
+   * @param {BaseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {bigint} index
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {boolean}
+   * @memberof MerkleTreeUtils
+   */
   static checkNonMembership<V extends FieldElements>(
     proof: BaseMerkleProof,
     expectedRoot: Field,
     index: bigint,
-    options: { hasher: Hasher; hashValue: boolean } = {
-      hasher: Poseidon.hash,
-      hashValue: true,
-    }
+    hasher: Hasher = Poseidon.hash
   ): boolean {
-    return this.verifyProof<V>(proof, expectedRoot, index, undefined, options);
+    return this.verifyProof<V>(proof, expectedRoot, index, undefined, {
+      hasher,
+      hashValue: true,
+    });
   }
 
   /**
-   * Verify this merkle proof. Note: This method cannot be executed in a circuit.
+   * Verify the merkle proof.
    *
+   * @static
    * @template V
+   * @param {BaseMerkleProof} proof
    * @param {Field} expectedRoot
+   * @param {bigint} index
    * @param {V} [value]
    * @param {{ hasher: Hasher; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
-   *     }]
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash;
+   * hashValue: whether to hash the value, the default is true.
    * @return {*}  {boolean}
-   * @memberof BaseNumIndexSparseMerkleProof
+   * @memberof MerkleTreeUtils
    */
   static verifyProof<V extends FieldElements>(
     proof: BaseMerkleProof,
@@ -295,6 +338,18 @@ class MerkleTreeUtils {
     return currentRoot.equals(expectedRoot).toBoolean();
   }
 
+  /**
+   *  Verify the merkle proof by index and valueHashOrValueField
+   *
+   * @static
+   * @param {BaseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {bigint} index
+   * @param {Field} valueHashOrValueField
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {boolean}
+   * @memberof MerkleTreeUtils
+   */
   static verifyProofByField(
     proof: BaseMerkleProof,
     expectedRoot: Field,
@@ -316,6 +371,18 @@ class MerkleTreeUtils {
     return currentRoot.equals(expectedRoot).toBoolean();
   }
 
+  /**
+   * Verify the merkle proof by index and valueHashOrValueField, return result and updates
+   *
+   * @static
+   * @param {BaseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {bigint} index
+   * @param {Field} valueHashOrValueField
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {{ ok: boolean; updates: [Field, Field[]][] }}
+   * @memberof MerkleTreeUtils
+   */
   static verifyProofByFieldWithUpdates(
     proof: BaseMerkleProof,
     expectedRoot: Field,
@@ -337,6 +404,17 @@ class MerkleTreeUtils {
     return { ok: actualRoot.equals(expectedRoot).toBoolean(), updates };
   }
 
+  /**
+   * Compute new merkle root by index and valueHashOrValueField
+   *
+   * @static
+   * @param {BaseMerkleProof} proof
+   * @param {bigint} index
+   * @param {Field} valueHashOrValueField
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {Field}
+   * @memberof MerkleTreeUtils
+   */
   static computeRootByField(
     proof: BaseMerkleProof,
     index: bigint,
@@ -364,6 +442,17 @@ class MerkleTreeUtils {
     return currentHash;
   }
 
+  /**
+   * Compute new merkle root by index and valueHashOrValueField, return new root and updates.
+   *
+   * @static
+   * @param {BaseMerkleProof} proof
+   * @param {bigint} index
+   * @param {Field} valueHashOrValueField
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {{ actualRoot: Field; updates: [Field, Field[]][] }}
+   * @memberof MerkleTreeUtils
+   */
   static computeRootByFieldWithUpdates(
     proof: BaseMerkleProof,
     index: bigint,

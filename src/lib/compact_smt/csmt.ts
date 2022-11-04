@@ -14,9 +14,8 @@ import { TreeHasher } from './tree_hasher';
 export { CompactSparseMerkleTree };
 
 /**
- * CompactSparseMerkleTree
+ * Compact Sparse Merkle Tree
  *
- * @export
  * @class CompactSparseMerkleTree
  * @template K
  * @template V
@@ -38,7 +37,9 @@ class CompactSparseMerkleTree<
    *       hasher: Poseidon.hash,
    *       hashKey: true,
    *       hashValue: true,
-   *     }]
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
    * @memberof CompactSparseMerkleTree
    */
   constructor(
@@ -83,7 +84,9 @@ class CompactSparseMerkleTree<
    *       hasher: Poseidon.hash,
    *       hashKey: true,
    *       hashValue: true,
-   *     }]
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
    * @return {*}  {Promise<CompactSparseMerkleTree<K, V>>}
    * @memberof CompactSparseMerkleTree
    */

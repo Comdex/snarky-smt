@@ -5,11 +5,67 @@ import { SparseMerkleProof } from './proofs';
 
 export { ProvableSMTUtils };
 
+/**
+ * Collection of utility functions for sparse merkle tree in the circuit.
+ *
+ * @class ProvableSMTUtils
+ */
 class ProvableSMTUtils {
+  /**
+   * Empty value for sparse merkle tree
+   *
+   * @static
+   * @memberof ProvableSMTUtils
+   */
   static EMPTY_VALUE = EMPTY_VALUE;
+
+  /**
+   * Verify a merkle proof by root, keyHashOrKeyField and valueHashOrValueField
+   *
+   * @static
+   * @param {SparseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {Field} keyHashOrKeyField
+   * @param {Field} valueHashOrValueField
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {Bool}
+   * @memberof ProvableSMTUtils
+   */
   static verifyProofByField = verifyProofByFieldInCircuit;
+
+  /**
+   * Calculate new root based on sideNodes, keyHashOrKeyField and valueHashOrValueField
+   *
+   * @static
+   * @param {Field[]} sideNodes
+   * @param {Field} keyHashOrKeyField
+   * @param {Field} valueHashOrValueField
+   * @param {Hasher} [hasher=Poseidon.hash]
+   * @return {*}  {Field}
+   * @memberof ProvableSMTUtils
+   */
   static computeRootByField = computeRootByFieldInCircuit;
 
+  /**
+   * Returns true if the value is in the tree and it is at the index from the key
+   *
+   * @static
+   * @template K
+   * @template V
+   * @param {SparseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {K} key
+   * @param {V} value
+   * @param {{ hasher?: Hasher; hashKey: boolean; hashValue: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
+   * @return {*}  {Bool}
+   * @memberof ProvableSMTUtils
+   */
   static checkMembership<K extends FieldElements, V extends FieldElements>(
     proof: SparseMerkleProof,
     expectedRoot: Field,
@@ -45,6 +101,23 @@ class ProvableSMTUtils {
     );
   }
 
+  /**
+   * Returns true if there is no value at the index from the key
+   *
+   * @static
+   * @template K
+   * @param {SparseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {K} key
+   * @param {{ hasher?: Hasher; hashKey: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
+   * @return {*}  {Bool}
+   * @memberof ProvableSMTUtils
+   */
   static checkNonMembership<K extends FieldElements>(
     proof: SparseMerkleProof,
     expectedRoot: Field,
@@ -74,6 +147,23 @@ class ProvableSMTUtils {
     );
   }
 
+  /**
+   * Calculate new root based on sideNodes, key and value
+   *
+   * @static
+   * @template K
+   * @template V
+   * @param {Field[]} sideNodes
+   * @param {K} key
+   * @param {V} value
+   * @param {{ hasher?: Hasher; hashKey: boolean; hashValue: boolean }} [options={
+   *       hasher: Poseidon.hash,
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }]
+   * @return {*}  {Field}
+   * @memberof ProvableSMTUtils
+   */
   static computeRoot<K extends FieldElements, V extends FieldElements>(
     sideNodes: Field[],
     key: K,
@@ -112,7 +202,6 @@ class ProvableSMTUtils {
 /**
  * Verify a merkle proof by root, keyHashOrKeyField and valueHashOrValueField in circuit.
  *
- * @export
  * @param {SparseMerkleProof} proof
  * @param {Field} expectedRoot
  * @param {Field} keyHashOrKeyField
@@ -140,7 +229,6 @@ function verifyProofByFieldInCircuit(
 /**
  * Calculate new root based on sideNodes, keyHashOrKeyField and valueHashOrValueField in circuit.
  *
- * @export
  * @param {Field[]} sideNodes
  * @param {Field} keyHashOrKeyField
  * @param {Field} valueHashOrValueField

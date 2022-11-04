@@ -10,9 +10,8 @@ import { ProvableMerkleTreeUtils } from './verify_circuit';
 export { MerkleTree };
 
 /**
- * Numerically indexed Sparse Merkle Tree.
+ * Merkle Tree.
  *
- * @export
  * @class MerkleTree
  * @template V
  */
@@ -25,7 +24,7 @@ class MerkleTree<V extends FieldElements> {
   protected readonly hashValue: boolean;
 
   /**
-   * Build a new numerically indexed sparse merkle tree.
+   * Build a new merkle tree.
    *
    * @static
    * @template V
@@ -34,7 +33,8 @@ class MerkleTree<V extends FieldElements> {
    * @param {{ hasher?: Hasher; hashValue?: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
-   *     }]
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash;
+   * hashValue: whether to hash the value, the default is true.
    * @return {*}  {Promise<MerkleTree<V>>}
    * @memberof MerkleTree
    */
@@ -77,7 +77,7 @@ class MerkleTree<V extends FieldElements> {
   }
 
   /**
-   * Import a numerically indexed sparse merkle tree via existing store.
+   * Import a merkle tree via existing store.
    *
    * @static
    * @template V
@@ -86,7 +86,8 @@ class MerkleTree<V extends FieldElements> {
    * @param {{ hasher?: Hasher; hashValue?: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
-   *     }]
+   *     }]  hasher: The hash function to use, defaults to Poseidon.hash;
+   * hashValue: whether to hash the value, the default is true.
    * @return {*}  {Promise<MerkleTree<V>>}
    * @memberof MerkleTree
    */

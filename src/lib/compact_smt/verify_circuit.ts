@@ -6,7 +6,36 @@ import { TreeHasher } from './tree_hasher';
 
 export { ProvableCSMTUtils };
 
+/**
+ * Collection of utility functions for compact sparse merkle tree in the circuit.
+ *
+ * @class ProvableCSMTUtils
+ */
 class ProvableCSMTUtils {
+  /**
+   * Returns true if the value is in the tree and it is at the index from the key
+   *
+   * @static
+   * @template K
+   * @template V
+   * @param {CompactSparseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {K} key
+   * @param {V} value
+   * @param {{
+   *       treeHasher: TreeHasher<K, V>;
+   *       hashKey: boolean;
+   *       hashValue: boolean;
+   *     }} [options={
+   *       treeHasher: TreeHasher.poseidon(),
+   *       hashKey: true,
+   *       hashValue: true,
+   *     }] treeHasher: The tree hasher function to use, defaults to TreeHasher.poseidon; hashKey:
+   * whether to hash the key, the default is true; hashValue: whether to hash the value,
+   * the default is true.
+   * @return {*}  {Bool}
+   * @memberof ProvableCSMTUtils
+   */
   static checkMembership<K extends FieldElements, V extends FieldElements>(
     proof: CompactSparseMerkleProof,
     expectedRoot: Field,
@@ -47,6 +76,23 @@ class ProvableCSMTUtils {
     return expectedRoot.equals(currentRoot);
   }
 
+  /**
+   * Returns true if there is no value at the index from the key
+   *
+   * @static
+   * @template K
+   * @template V
+   * @param {CompactSparseMerkleProof} proof
+   * @param {Field} expectedRoot
+   * @param {K} key
+   * @param {{ treeHasher: TreeHasher<K, V>; hashKey: boolean }} [options={
+   *       treeHasher: TreeHasher.poseidon(),
+   *       hashKey: true,
+   *     }] treeHasher: The tree hasher function to use, defaults to TreeHasher.poseidon;
+   * hashKey: whether to hash the key, the default is true
+   * @return {*}  {Bool}
+   * @memberof ProvableCSMTUtils
+   */
   static checkNonMembership<K extends FieldElements, V extends FieldElements>(
     proof: CompactSparseMerkleProof,
     expectedRoot: Field,
