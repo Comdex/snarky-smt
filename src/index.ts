@@ -5,6 +5,7 @@ export * from './lib/smt/deep_subtree';
 export * from './lib/smt/deep_subtree_circuit';
 
 export * from './lib/merkle/merkle_tree';
+export * from './lib/merkle/verify_circuit';
 export * from './lib/merkle/proofs';
 export * from './lib/merkle/deep_subtree';
 export * from './lib/merkle/deep_subtree_circuit';
