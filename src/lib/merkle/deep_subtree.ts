@@ -7,7 +7,7 @@ import { ProvableMerkleTreeUtils } from './verify_circuit';
 export { DeepMerkleSubTree };
 
 /**
- * DeepMerkleSubTree is a deep sparse merkle subtree for working on only a few leafs.
+ * DeepMerkleSubTree is a deep merkle subtree for working on only a few leafs.
  *
  * @class DeepMerkleSubTree
  * @template V

@@ -203,6 +203,9 @@ const newRoot = ProvableMerkleTreeUtils.computeRoot(
 );
 ```
 
+Support DeepMerkleSubTree: DeepMerkleSubTree is a deep sparse merkle subtree for working on only a few leafs.(ProvableDeepMerkleSubTree is a deep subtree version that works in circuit).
+[**DeepMerkleSubTree Example**](./src/experimental/merkle_subtree.ts)
+
 ### Use SparseMerkleTree
 
 > SparseMerkleTree is a merkle tree with a fixed height of 254, this merkel tree is equivalent to a data structure: Map<CircuitValue,CircuitValue>, CircuitValue can be a CircuitValue type in snarkyjs, such as Field, PublicKey, or a custom composite CircuitValue.
@@ -271,13 +274,16 @@ let newRoot = ProvableSMTUtils.computeRoot(roof.sideNodes, testKey, newValue);
 console.log('newRoot: ', newRoot.toString());
 ```
 
+Support DeepSparseMerkleSubTree: DeepSparseMerkleSubTree is a deep sparse merkle subtree for working on only a few leafs.(ProvableDeepSparseMerkleSubTree is a deep subtree version that works in circuit).
+[**DeepSparseMerkleSubTree Example**](./src/experimental/subtree.ts)
+
 ### Use CompactSparseMerkleTree
 
 > CompactSparseMerkleTree is a merkle tree with a fixed height of 254, this merkel tree is equivalent to a data structure: Map<CircuitValue,CircuitValue>, CircuitValue can be a CircuitValue type in snarkyjs, such as Field, PublicKey, or a custom composite CircuitValue. Compared with SparseMerkleTree, its advantage is that it can save storage space, and the operation efficiency of the tree is relatively high, but it is currently impossible to calculate the new root after the state transformation in the circuit.
 
 CSMTUtils: A collection of compact sparse merkle tree utility methods that do not work in circuits.
 
-ProvableSMTUtils: A collection of compact sparse merkle tree utility methods that can be verified to work in circuits
+ProvableCSMTUtils: A collection of compact sparse merkle tree utility methods that can be verified to work in circuits
 
 ```typescript
 class Account extends CircuitValue {
@@ -326,6 +332,9 @@ let isOk = ProvableCSMTUtils.checkMembership(proof, root, testKey, testValue);
 // Check Non-membership in circuit, isOk should be false.
 isOk = ProvableCSMTUtils.checkNonMembership(proof, root, testKey);
 ```
+
+Support CompactDeepSparseMerkleSubTree: CompactDeepSparseMerkleSubTree is a deep sparse merkle subtree for working on only a few leafs.
+[**CompactDeepSparseMerkleSubTree Example**](./src/experimental/ctree.ts)
 
 ## API Reference
 
