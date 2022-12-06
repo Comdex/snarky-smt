@@ -38,7 +38,7 @@
     "doc:html": "typedoc src/index.ts --exclude **/*.test.ts --out build/docs",
     "doc:json": "typedoc src/index.ts --exclude **/*.test.ts --json build/docs/typedoc.json",
     "doc:publish": "gh-pages -m \"[ci skip] Updates\" -d build/docs",
-    "citest": "for f in ./test/*.test.ts; do NODE_OPTIONS=--experimental-vm-modules npx jest $f || exit 1; done",
+    "citest": "for f in ./test/*.test.ts; do NODE_OPTIONS=--experimental-vm-modules npx jest $f --passWithNoTests || exit 1; done",
     "test2": "jest --config jest.config.js --maxWorkers=50%",
     "test": "node --experimental-vm-modules --experimental-wasm-modules --experimental-wasm-threads --no-warnings node_modules/jest/bin/jest.js --config jest.config.js",
     "test:compact": "jest --config jest.config.js compact_smt",
