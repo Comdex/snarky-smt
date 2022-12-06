@@ -20,7 +20,11 @@ describe('SparseMerkleTree', () => {
 
   beforeEach(async () => {
     await isReady;
-    tree = await SparseMerkleTree.build<Field, Field>(new MemoryStore<Field>());
+    tree = await SparseMerkleTree.build<Field, Field>(
+      new MemoryStore<Field>(),
+      Field,
+      Field
+    );
   });
 
   it('should create and verify proof correctly', async () => {
@@ -39,12 +43,14 @@ describe('SparseMerkleTree', () => {
     const root = tree.getRoot();
     for (let i = 0; i < updateTimes; i++) {
       const proof = await tree.prove(keys[i]);
-      expect(SMTUtils.checkMembership(proof, root, keys[i], values[i]));
+      expect(
+        SMTUtils.checkMembership(proof, root, keys[i], Field, values[i], Field)
+      );
     }
 
     const key = Poseidon.hash(keys[0].toFields());
     const nonMembershipProof = await tree.prove(key);
-    expect(SMTUtils.checkNonMembership(nonMembershipProof, root, key));
+    expect(SMTUtils.checkNonMembership(nonMembershipProof, root, key, Field));
   });
 
   it('should delete element correctly', async () => {
@@ -54,7 +60,7 @@ describe('SparseMerkleTree', () => {
     const root = await tree.delete(x);
 
     const nonMembershipProof = await tree.prove(x);
-    expect(SMTUtils.checkNonMembership(nonMembershipProof, root, x));
+    expect(SMTUtils.checkNonMembership(nonMembershipProof, root, x, Field));
   });
 
   it('should get and check element correctly', async () => {
@@ -75,7 +81,7 @@ describe('SparseMerkleTree', () => {
 
     const cproof = await tree.proveCompact(x);
     const proof = SMTUtils.decompactProof(cproof);
-    expect(SMTUtils.checkMembership(proof, root, x, y));
+    expect(SMTUtils.checkMembership(proof, root, x, Field, y, Field));
   });
 
   function log(...objs: any) {
@@ -96,10 +102,17 @@ describe('SparseMerkleTree', () => {
     const zproof = await tree.prove(z);
 
     Circuit.runAndCheck(() => {
-      ProvableSMTUtils.checkNonMembership(zproof, root, z).assertTrue();
+      ProvableSMTUtils.checkNonMembership(zproof, root, z, Field).assertTrue();
       log('z nonMembership assert success');
 
-      ProvableSMTUtils.checkMembership(proof, root, x, y).assertTrue();
+      ProvableSMTUtils.checkMembership(
+        proof,
+        root,
+        x,
+        Field,
+        y,
+        Field
+      ).assertTrue();
       log('x y membership assert success');
     });
   });

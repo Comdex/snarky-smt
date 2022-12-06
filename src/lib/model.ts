@@ -1,7 +1,5 @@
-import { Bool, CircuitValue, Field, Scalar } from 'snarkyjs';
+import { Field } from 'snarkyjs';
 
-export type { Hasher, FieldElements };
+export type { Hasher };
 
 type Hasher = (v: Field[]) => Field;
-
-type FieldElements = CircuitValue | Field | Bool;

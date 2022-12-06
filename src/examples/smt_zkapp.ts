@@ -9,7 +9,6 @@ Merkle Trees give developers the power of storing large amounts of data off-chai
 import {
   AccountUpdate,
   CircuitString,
-  CircuitValue,
   DeployArgs,
   Field,
   isReady,
@@ -24,6 +23,7 @@ import {
   SmartContract,
   State,
   state,
+  Struct,
   UInt32,
   UInt64,
 } from 'snarkyjs';
@@ -36,23 +36,17 @@ await isReady;
 
 const doProofs = true;
 
-class Account extends CircuitValue {
-  @prop publicKey: PublicKey;
-  @prop points: UInt32;
-
-  constructor(publicKey: PublicKey, points: UInt32) {
-    super(publicKey, points);
-    this.publicKey = publicKey;
-    this.points = points;
-  }
-
+class Account extends Struct({ publicKey: PublicKey, points: UInt32 }) {
   addPoints(n: number): Account {
-    return new Account(this.publicKey, this.points.add(n));
+    return new Account({
+      publicKey: this.publicKey,
+      points: this.points.add(n),
+    });
   }
 }
 
 // we need the initiate tree root in order to tell the contract about our off-chain storage
-let initialCommitment: Field = Field.zero;
+let initialCommitment: Field = Field(0);
 /*
     We want to write a smart contract that serves as a leaderboard,
     but only has the commitment of the off-chain storage stored in an on-chain variable.
@@ -70,7 +64,7 @@ class Leaderboard extends SmartContract {
       ...Permissions.default(),
       editState: Permissions.proofOrSignature(),
     });
-    this.balance.addInPlace(UInt64.fromNumber(initialBalance));
+    this.balance.addInPlace(UInt64.from(initialBalance));
     this.commitment.set(initialCommitment);
   }
 
@@ -89,14 +83,17 @@ class Leaderboard extends SmartContract {
     ProvableSMTUtils.checkNonMembership(
       merkleProof,
       commitment,
-      name
+      name,
+      CircuitString
     ).assertTrue();
 
     // add new account
     let newCommitment = ProvableSMTUtils.computeRoot(
       merkleProof.sideNodes,
       name,
-      account
+      CircuitString,
+      account,
+      Account
     );
 
     this.commitment.set(newCommitment);
@@ -126,7 +123,9 @@ class Leaderboard extends SmartContract {
       merkleProof,
       commitment,
       name,
-      account
+      CircuitString,
+      account,
+      Account
     ).assertTrue();
 
     // we update the account and grant one point!
@@ -136,7 +135,9 @@ class Leaderboard extends SmartContract {
     let newCommitment = ProvableSMTUtils.computeRoot(
       merkleProof.sideNodes,
       name,
-      newAccount
+      CircuitString,
+      newAccount,
+      Account
     );
 
     this.commitment.set(newCommitment);
@@ -154,17 +155,33 @@ let zkappKey = PrivateKey.random();
 let zkappAddress = zkappKey.toPublicKey();
 
 let store = new MemoryStore<Account>();
-let smt = await SparseMerkleTree.build<CircuitString, Account>(store);
+let smt = await SparseMerkleTree.build<CircuitString, Account>(
+  store,
+  CircuitString,
+  Account as any
+);
 
 const Bob = CircuitString.fromString('Bob');
 const Alice = CircuitString.fromString('Alice');
 const Charlie = CircuitString.fromString('Charlie');
 const Olivia = CircuitString.fromString('Olivia');
 
-let bobAc = new Account(Local.testAccounts[0].publicKey, UInt32.from(0));
-let aliceAc = new Account(Local.testAccounts[1].publicKey, UInt32.from(0));
-let charlieAc = new Account(Local.testAccounts[2].publicKey, UInt32.from(0));
-let oliviaAc = new Account(Local.testAccounts[3].publicKey, UInt32.from(2));
+let bobAc = new Account({
+  publicKey: Local.testAccounts[0].publicKey,
+  points: UInt32.from(0),
+});
+let aliceAc = new Account({
+  publicKey: Local.testAccounts[1].publicKey,
+  points: UInt32.from(0),
+});
+let charlieAc = new Account({
+  publicKey: Local.testAccounts[2].publicKey,
+  points: UInt32.from(0),
+});
+let oliviaAc = new Account({
+  publicKey: Local.testAccounts[3].publicKey,
+  points: UInt32.from(2),
+});
 
 await smt.update(Bob, bobAc);
 await smt.update(Alice, aliceAc);
@@ -182,7 +199,7 @@ let tx = await Mina.transaction(feePayer, () => {
   AccountUpdate.fundNewAccount(feePayer, { initialBalance });
   leaderboardZkApp.deploy({ zkappKey });
 });
-tx.send();
+await tx.send();
 
 console.log('Initial points: ' + (await smt.get(Bob))?.points);
 
@@ -207,7 +224,7 @@ async function addNewAccount(name: CircuitString, account: Account) {
   if (doProofs) {
     await tx.prove();
   }
-  tx.send();
+  await tx.send();
 
   await smt.update(name, account!);
   leaderboardZkApp.commitment.get().assertEquals(smt.getRoot());
@@ -225,7 +242,7 @@ async function makeGuess(name: CircuitString, guess: number) {
   if (doProofs) {
     await tx.prove();
   }
-  tx.send();
+  await tx.send();
 
   // if the transaction was successful, we can update our off-chain storage as well
   account!.points = account!.points.add(1);

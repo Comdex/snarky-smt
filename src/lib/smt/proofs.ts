@@ -1,7 +1,7 @@
-import { arrayProp, Bool, CircuitValue, Field, Poseidon, prop } from 'snarkyjs';
+import { Bool, Circuit, Field, Poseidon, Provable, Struct } from 'snarkyjs';
 import { EMPTY_VALUE, RIGHT, SMT_DEPTH } from '../constant';
 import { defaultNodes } from '../default_nodes';
-import { FieldElements, Hasher } from '../model';
+import { Hasher } from '../model';
 import { countSetBits, fieldToHexString, hexStringToField } from '../utils';
 
 export { SparseMerkleProof, SMTUtils };
@@ -11,18 +11,12 @@ export type { SparseCompactMerkleProof, SparseCompactMerkleProofJSON };
  * Merkle proof CircuitValue for an element in a SparseMerkleTree.
  *
  * @class SparseMerkleProof
- * @extends {CircuitValue}
+ * @extends {Struct({sideNodes: Circuit.array(Field, SMT_DEPTH), root: Field})}
  */
-class SparseMerkleProof extends CircuitValue {
-  @arrayProp(Field, SMT_DEPTH) sideNodes: Field[];
-  @prop root: Field;
-
-  constructor(sideNodes: Field[], root: Field) {
-    super(sideNodes, root);
-    this.sideNodes = sideNodes;
-    this.root = root;
-  }
-}
+class SparseMerkleProof extends Struct({
+  sideNodes: Circuit.array(Field, SMT_DEPTH),
+  root: Field,
+}) {}
 
 /**
  * Compacted Merkle proof for an element in a SparseMerkleTree
@@ -108,7 +102,9 @@ class SMTUtils {
    * @template V
    * @param {Field[]} sideNodes
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {V} [value]
+   * @param {Provable<V>} [valueType]
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -119,10 +115,12 @@ class SMTUtils {
    * @return {*}  {Field}
    * @memberof SMTUtils
    */
-  static computeRoot<K extends FieldElements, V extends FieldElements>(
+  static computeRoot<K, V>(
     sideNodes: Field[],
     key: K,
+    keyType: Provable<K>,
     value?: V,
+    valueType?: Provable<V>,
     options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -131,11 +129,11 @@ class SMTUtils {
   ): Field {
     let currentHash: Field;
     if (value !== undefined) {
-      let valueFields = value.toFields();
+      let valueFields = valueType?.toFields(value);
       if (options.hashValue) {
-        currentHash = options.hasher(valueFields);
+        currentHash = options.hasher(valueFields!);
       } else {
-        currentHash = valueFields[0];
+        currentHash = valueFields![0];
       }
     } else {
       currentHash = EMPTY_VALUE;
@@ -145,8 +143,8 @@ class SMTUtils {
       throw new Error('Invalid sideNodes size');
     }
 
-    let path = null;
-    let keyFields = key.toFields();
+    let path: Field | null = null;
+    let keyFields = keyType.toFields(key);
     if (options.hashKey) {
       path = options.hasher(keyFields);
     } else {
@@ -175,7 +173,9 @@ class SMTUtils {
    * @param {SparseMerkleProof} proof
    * @param {Field} expectedRoot
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {V} value
+   * @param {Provable<V>} valueType
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -186,18 +186,28 @@ class SMTUtils {
    * @return {*}  {boolean}
    * @memberof SMTUtils
    */
-  static checkMembership<K extends FieldElements, V extends FieldElements>(
+  static checkMembership<K, V>(
     proof: SparseMerkleProof,
     expectedRoot: Field,
     key: K,
+    keyType: Provable<K>,
     value: V,
+    valueType: Provable<V>,
     options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
       hashValue: true,
     }
   ): boolean {
-    return this.verifyProof<K, V>(proof, expectedRoot, key, value, options);
+    return this.verifyProof<K, V>(
+      proof,
+      expectedRoot,
+      key,
+      keyType,
+      value,
+      valueType,
+      options
+    );
   }
 
   /**
@@ -209,6 +219,7 @@ class SMTUtils {
    * @param {SparseMerkleProof} proof
    * @param {Field} expectedRoot
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -219,17 +230,26 @@ class SMTUtils {
    * @return {*}  {boolean}
    * @memberof SMTUtils
    */
-  static checkNonMembership<K extends FieldElements, V extends FieldElements>(
+  static checkNonMembership<K, V>(
     proof: SparseMerkleProof,
     expectedRoot: Field,
     key: K,
+    keyType: Provable<K>,
     options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
       hashValue: true,
     }
   ): boolean {
-    return this.verifyProof<K, V>(proof, expectedRoot, key, undefined, options);
+    return this.verifyProof<K, V>(
+      proof,
+      expectedRoot,
+      key,
+      keyType,
+      undefined,
+      undefined,
+      options
+    );
   }
 
   /**
@@ -241,7 +261,9 @@ class SMTUtils {
    * @param {SparseMerkleProof} proof
    * @param {Field} expectedRoot
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {V} [value]
+   * @param {Provable<V>} [valueType]
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -252,11 +274,13 @@ class SMTUtils {
    * @return {*}  {boolean}
    * @memberof SMTUtils
    */
-  static verifyProof<K extends FieldElements, V extends FieldElements>(
+  static verifyProof<K, V>(
     proof: SparseMerkleProof,
     expectedRoot: Field,
     key: K,
+    keyType: Provable<K>,
     value?: V,
+    valueType?: Provable<V>,
     options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -266,7 +290,14 @@ class SMTUtils {
     if (!proof.root.equals(expectedRoot).toBoolean()) {
       return false;
     }
-    let newRoot = this.computeRoot<K, V>(proof.sideNodes, key, value, options);
+    let newRoot = this.computeRoot<K, V>(
+      proof.sideNodes,
+      key,
+      keyType,
+      value,
+      valueType,
+      options
+    );
 
     return newRoot.equals(expectedRoot).toBoolean();
   }
@@ -280,22 +311,24 @@ class SMTUtils {
    * @param {SparseCompactMerkleProof} cproof
    * @param {Field} expectedRoot
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {V} [value]
+   * @param {Provable<V>} [valueType]
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
    *       hashValue: true,
-   *     }]  hasher: The hash function to use, defaults to Poseidon.hash; hashKey:
-   * whether to hash the key, the default is true; hashValue: whether to hash the value,
-   * the default is true.
+   *     }]
    * @return {*}  {boolean}
    * @memberof SMTUtils
    */
-  static verifyCompactProof<K extends FieldElements, V extends FieldElements>(
+  static verifyCompactProof<K, V>(
     cproof: SparseCompactMerkleProof,
     expectedRoot: Field,
     key: K,
+    keyType: Provable<K>,
     value?: V,
+    valueType?: Provable<V>,
     options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -303,7 +336,15 @@ class SMTUtils {
     }
   ): boolean {
     const proof = this.decompactProof(cproof, options.hasher);
-    return this.verifyProof(proof, expectedRoot, key, value, options);
+    return this.verifyProof(
+      proof,
+      expectedRoot,
+      key,
+      keyType,
+      value,
+      valueType,
+      options
+    );
   }
 
   /**
@@ -336,7 +377,7 @@ class SMTUtils {
 
     return {
       sideNodes: compactSideNodes,
-      bitMask: Field.ofBits(bits),
+      bitMask: Field.fromBits(bits),
       root: proof.root,
     };
   }
@@ -371,6 +412,6 @@ class SMTUtils {
       }
     }
 
-    return new SparseMerkleProof(decompactedSideNodes, proof.root);
+    return { sideNodes: decompactedSideNodes, root: proof.root };
   }
 }

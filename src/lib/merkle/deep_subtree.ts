@@ -1,6 +1,6 @@
-import { Field, Poseidon } from 'snarkyjs';
+import { Field, Poseidon, Provable } from 'snarkyjs';
 import { EMPTY_VALUE } from '../constant';
-import { FieldElements, Hasher } from '../model';
+import { Hasher } from '../model';
 import { BaseMerkleProof, MerkleTreeUtils } from './proofs';
 import { ProvableMerkleTreeUtils } from './verify_circuit';
 
@@ -12,18 +12,20 @@ export { DeepMerkleSubTree };
  * @class DeepMerkleSubTree
  * @template V
  */
-class DeepMerkleSubTree<V extends FieldElements> {
+class DeepMerkleSubTree<V> {
   private nodeStore: Map<string, Field[]>;
   private valueStore: Map<string, Field>;
   private root: Field;
   private height: number;
   private hasher: Hasher;
   private hashValue: boolean;
+  private valueType: Provable<V>;
 
   /**
    * Creates an instance of DeepMerkleSubTree.
    * @param {Field} root
    * @param {number} height
+   * @param {Provable<V>} valueType
    * @param {{ hasher: Hasher; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
@@ -34,6 +36,7 @@ class DeepMerkleSubTree<V extends FieldElements> {
   constructor(
     root: Field,
     height: number,
+    valueType: Provable<V>,
     options: { hasher: Hasher; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashValue: true,
@@ -45,6 +48,7 @@ class DeepMerkleSubTree<V extends FieldElements> {
     this.height = height;
     this.hasher = options.hasher;
     this.hashValue = options.hashValue;
+    this.valueType = valueType;
   }
 
   /**
@@ -70,7 +74,7 @@ class DeepMerkleSubTree<V extends FieldElements> {
   private getValueField(value?: V): Field {
     let valueHashOrValueField = EMPTY_VALUE;
     if (value !== undefined) {
-      let valueFields = value.toFields();
+      let valueFields = this.valueType.toFields(value);
       valueHashOrValueField = valueFields[0];
       if (this.hashValue) {
         valueHashOrValueField = this.hasher(valueFields);

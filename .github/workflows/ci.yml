@@ -17,10 +17,10 @@ jobs:
           node-version: '16'
       - name: Git checkout
         uses: actions/checkout@v2
-      - name: NPM install, build, & test
+      - name: NPM ci, build, & test
         run: |
-          npm install
+          npm ci
           npm run build:module --if-present
-          npm run test:tree
+          npm run citest
         env:
           CI: true

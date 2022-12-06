@@ -56,7 +56,7 @@ class TestZkapp extends SmartContract {
     let commitment = this.commitment.get();
     this.commitment.assertEquals(commitment);
 
-    let tree = new ProvableDeepMerkleSubTree(proof1.root, treeHeight);
+    let tree = new ProvableDeepMerkleSubTree(proof1.root, treeHeight, Field);
     // let tree = new NumIndexDeepSparseMerkleSubTree<Field>(
     //   proof1.root,
     //   Field,
@@ -92,7 +92,7 @@ let feePayerKey = local.testAccounts[0].privateKey;
 let zkappKey = PrivateKey.random();
 let zkappAddress = zkappKey.toPublicKey();
 
-let tree = await MerkleTree.build<Field>(new MemoryStore<Field>(), treeHeight);
+let tree = await MerkleTree.build(new MemoryStore<Field>(), treeHeight, Field);
 const key1 = 0n;
 const value1 = Field(33);
 const key2 = 1n;
@@ -130,7 +130,7 @@ async function test() {
     zkapp.deploy({ zkappKey });
   });
   if (doProofs) await tx.prove();
-  tx.send();
+  await tx.send();
 
   console.log('deploy done');
 
@@ -151,7 +151,7 @@ async function test() {
     if (!doProofs) zkapp.sign(zkappKey);
   });
   if (doProofs) await tx.prove();
-  tx.send();
+  await tx.send();
   console.log('end method');
   shutdown();
 }

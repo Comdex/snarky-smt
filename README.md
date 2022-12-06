@@ -5,11 +5,11 @@
 ![Libraries.io dependency status for latest release](https://img.shields.io/librariesio/release/npm/snarky-smt)
 ![npm](https://img.shields.io/npm/dm/snarky-smt)
 
-Sparse Merkle Tree for SnarkyJs (membership / non-membership merkle proof).
+Merkle Tree for SnarkyJs (membership / non-membership merkle proof).
 
 The library contains implementations of sparse merkle tree, merkle tree and compact merkle tree based on snarkyjs, which you can use in the browser or node.js, and provides a corresponding set of verifiable utility methods that can be run in circuits.
 
-**Notice**: Versions starting from 0.5.0 have a breaking update to the api and are not compatible with previous versions
+**Notice**: Versions starting from 0.6.0 (Structs are officially supported) have a breaking update to the api and are not compatible with previous versions
 
 This article gives a brief introduction to SMT: [Whats a sparse merkle tree](https://medium.com/@kelvinfichter/whats-a-sparse-merkle-tree-acda70aeb837)
 
@@ -140,7 +140,7 @@ let store: Store<Field> = new MongoStore(mongoose.connection, Field, 'test');
 
 ### Use MerkleTree (original NumIndexSparseMerkleTree)
 
-> MerkleTree is a merkle tree of numerically indexed data that can customize the tree height, this merkel tree is equivalent to a data structure: Map<bigint,CircuitValue>, CircuitValue can be a CircuitValue type in snarkyjs, such as Field, PublicKey, or a custom composite CircuitValue.
+> MerkleTree is a merkle tree of numerically indexed data that can customize the tree height, this merkel tree is equivalent to a data structure: Map<bigint, Struct>, Struct can be a CircuitValue type in snarkyjs, such as Field, PublicKey, or a custom composite Struct.
 > Tree height <= 254, Numeric index <= (2^height-1).
 
 MerkleTreeUtils: A collection of merkle tree utility methods that do not work in circuits.
@@ -151,29 +151,22 @@ An example of using MerkleTree in the mina smart contract, modified from the exa
 [**merkle_zkapp.ts**](./src/examples/merkle_zkapp.ts)
 
 ```typescript
-class Account extends CircuitValue {
-  @prop address: PublicKey;
-  @prop balance: UInt64;
-  @prop nonce: UInt32;
-
-  constructor(address: PublicKey, balance: UInt64, nonce: UInt32) {
-    super();
-    this.address = address;
-    this.balance = balance;
-    this.nonce = nonce;
-  }
-}
+class Account extends Struct({
+  address: PublicKey,
+  balance: UInt64,
+  nonce: UInt32,
+}) {}
 
 // Create a memory store
 let store = new MemoryStore<Account>();
 // initialize a new Merkle Tree with height 8
-let tree = await MerkleTree.build<Account>(store, 8);
+let tree = await MerkleTree.build(store, 8, Account);
 
-let testValue = new Account(
-  PrivateKey.random().toPublicKey(),
-  UInt64.fromNumber(100),
-  UInt32.fromNumber(0)
-);
+let testValue = new Account({
+  address: PrivateKey.random().toPublicKey(),
+  balance: UInt64.fromNumber(100),
+  nonce: UInt32.fromNumber(0),
+});
 
 const root = await tree.update(0n, testValue);
 
@@ -184,14 +177,15 @@ const cproof = await tree.proveCompact(0n);
 // decompact NumIndexProof
 const proof = MerkleTreeUtils.decompactMerkleProof(cproof);
 // check membership outside the circuit
-const ok = MerkleTreeUtils.checkMembership(proof, root, 0n, testValue);
+const ok = MerkleTreeUtils.checkMembership(proof, root, 0n, testValue, Account);
 
 // check membership in the circuit
 ProvableMerkleTreeUtils.checkMembership(
   proof,
   root,
   Field(0n),
-  testValue
+  testValue,
+  Account
 ).assertTrue();
 
 testValue.nonce = testValue.nonce.add(1);
@@ -199,7 +193,8 @@ testValue.nonce = testValue.nonce.add(1);
 const newRoot = ProvableMerkleTreeUtils.computeRoot(
   proof,
   Field(0n),
-  testValue
+  testValue,
+  Account
 );
 ```
 
@@ -208,7 +203,7 @@ Support DeepMerkleSubTree: DeepMerkleSubTree is a deep sparse merkle subtree for
 
 ### Use SparseMerkleTree
 
-> SparseMerkleTree is a merkle tree with a fixed height of 254, this merkel tree is equivalent to a data structure: Map<CircuitValue,CircuitValue>, CircuitValue can be a CircuitValue type in snarkyjs, such as Field, PublicKey, or a custom composite CircuitValue.
+> SparseMerkleTree is a merkle tree with a fixed height of 254, this merkel tree is equivalent to a data structure: Map<Struct,Struct>, Struct can be a CircuitValue type in snarkyjs, such as Field, PublicKey, or a custom composite Struct.
 
 SMTUtils: A collection of sparse merkle tree utility methods that do not work in circuits.
 
@@ -218,18 +213,11 @@ An example of using SparseMerkleTree in the mina smart contract, modified from t
 [**smt_zkapp.ts**](./src/examples/smt_zkapp.ts)
 
 ```typescript
-class Account extends CircuitValue {
-  @prop address: PublicKey;
-  @prop balance: UInt64;
-  @prop nonce: UInt32;
-
-  constructor(address: PublicKey, balance: UInt64, nonce: UInt32) {
-    super();
-    this.address = address;
-    this.balance = balance;
-    this.nonce = nonce;
-  }
-}
+class Account extends Struct({
+  address: PublicKey,
+  balance: UInt64,
+  nonce: UInt32,
+}) {}
 
 // Create a memory store
 let store = new MemoryStore<Account>();
@@ -237,40 +225,60 @@ let store = new MemoryStore<Account>();
 // const levelDb = new Level<string, any>('./db');
 // let store = new LevelStore<Account>(levelDb, Account, 'test');
 
-let smt = await SparseMerkleTree.build<Field, Account>(store);
+let smt = await SparseMerkleTree.build(store, Field, Account);
 // Or import a tree by store
 // smt = await SparseMerkleTree.importTree<Field, Account>(store);
 
 let testKey = Field(1);
-let testValue = new Account(
-  PrivateKey.random().toPublicKey(),
-  UInt64.fromNumber(100),
-  UInt32.fromNumber(0)
-);
-let newValue = new Account(
-  PrivateKey.random().toPublicKey(),
-  UInt64.fromNumber(50),
-  UInt32.fromNumber(1)
-);
+let testValue = new Account({
+  address: PrivateKey.random().toPublicKey(),
+  balance: UInt64.fromNumber(100),
+  nonce: UInt32.fromNumber(0),
+});
+let newValue = new Account({
+  address: PrivateKey.random().toPublicKey(),
+  balance: UInt64.fromNumber(50),
+  nonce: UInt32.fromNumber(1),
+});
 
 const root = await smt.update(testKey, testValue);
 // Create a compacted merkle proof for a key against the current root.
 const cproof = await smt.proveCompact(testKey);
 // Verify the compacted Merkle proof outside the circuit.
-const ok = SMTUtils.verifyCompactProof(cproof, root, testKey, testValue);
+const ok = SMTUtils.verifyCompactProof(
+  cproof,
+  root,
+  testKey,
+  Field,
+  testValue,
+  Account
+);
 console.log('ok: ', ok);
 
 // Create a merkle proof for a key against the current root.
 const proof = await smt.prove(testKey);
 
 // Check membership in the circuit, isOk should be true.
-let isOk = ProvableSMTUtils.checkMembership(proof, root, testKey, testValue);
+let isOk = ProvableSMTUtils.checkMembership(
+  proof,
+  root,
+  testKey,
+  Field,
+  testValue,
+  Account
+);
 
 // Check Non-membership in the circuit, isOk should be false.
-isOk = ProvableSMTUtils.checkNonMembership(proof, root, testKey);
+isOk = ProvableSMTUtils.checkNonMembership(proof, root, testKey, Field);
 
 // Calculate new root in the circuit
-let newRoot = ProvableSMTUtils.computeRoot(roof.sideNodes, testKey, newValue);
+let newRoot = ProvableSMTUtils.computeRoot(
+  roof.sideNodes,
+  testKey,
+  Field,
+  newValue,
+  Account
+);
 console.log('newRoot: ', newRoot.toString());
 ```
 
@@ -279,25 +287,18 @@ Support DeepSparseMerkleSubTree: DeepSparseMerkleSubTree is a deep sparse merkle
 
 ### Use CompactSparseMerkleTree
 
-> CompactSparseMerkleTree is a merkle tree with a fixed height of 254, this merkel tree is equivalent to a data structure: Map<CircuitValue,CircuitValue>, CircuitValue can be a CircuitValue type in snarkyjs, such as Field, PublicKey, or a custom composite CircuitValue. Compared with SparseMerkleTree, its advantage is that it can save storage space, and the operation efficiency of the tree is relatively high, but it is currently impossible to calculate the new root after the state transformation in the circuit.
+> CompactSparseMerkleTree is a merkle tree with a fixed height of 254, this merkel tree is equivalent to a data structure: Map<Struct,Struct>, Struct can be a CircuitValue type in snarkyjs, such as Field, PublicKey, or a custom composite Struct. Compared with SparseMerkleTree, its advantage is that it can save storage space, and the operation efficiency of the tree is relatively high, but it is currently impossible to calculate the new root after the state transformation in the circuit.
 
 CSMTUtils: A collection of compact sparse merkle tree utility methods that do not work in circuits.
 
 ProvableCSMTUtils: A collection of compact sparse merkle tree utility methods that can be verified to work in circuits
 
 ```typescript
-class Account extends CircuitValue {
-  @prop address: PublicKey;
-  @prop balance: UInt64;
-  @prop nonce: UInt32;
-
-  constructor(address: PublicKey, balance: UInt64, nonce: UInt32) {
-    super();
-    this.address = address;
-    this.balance = balance;
-    this.nonce = nonce;
-  }
-}
+class Account extends Struct({
+  address: PublicKey,
+  balance: UInt64,
+  nonce: UInt32,
+}) {}
 
 // Create a memory store
 let store = new MemoryStore<Account>();
@@ -305,7 +306,7 @@ let store = new MemoryStore<Account>();
 // const levelDb = new Level<string, any>('./db');
 // let store = new LevelStore<Account>(levelDb, Account, 'test');
 
-let smt = new CompactSparseMerkleTree(store);
+let smt = new CompactSparseMerkleTree(store, Field, Account);
 // Or import a tree by store
 // smt = await CompactSparseMerkleTree.import(store);
 
@@ -327,10 +328,17 @@ const root = await smt.update(testKey, testValue);
 const proof = await smt.prove(testKey);
 
 // Check membership in circuit, isOk should be true.
-let isOk = ProvableCSMTUtils.checkMembership(proof, root, testKey, testValue);
+let isOk = ProvableCSMTUtils.checkMembership(
+  proof,
+  root,
+  testKey,
+  Field,
+  testValue,
+  Account
+);
 
 // Check Non-membership in circuit, isOk should be false.
-isOk = ProvableCSMTUtils.checkNonMembership(proof, root, testKey);
+isOk = ProvableCSMTUtils.checkNonMembership(proof, root, testKey, Field);
 ```
 
 Support CompactDeepSparseMerkleSubTree: CompactDeepSparseMerkleSubTree is a deep sparse merkle subtree for working on only a few leafs.

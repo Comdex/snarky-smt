@@ -1,6 +1,6 @@
-import { Field, Poseidon } from 'snarkyjs';
+import { Field, Poseidon, Provable } from 'snarkyjs';
 import { EMPTY_VALUE, SMT_DEPTH } from '../constant';
-import { FieldElements, Hasher } from '../model';
+import { Hasher } from '../model';
 import { SparseMerkleProof } from './proofs';
 
 export { DeepSparseMerkleSubTree };
@@ -11,19 +11,20 @@ export { DeepSparseMerkleSubTree };
  * @template K
  * @template V
  */
-class DeepSparseMerkleSubTree<
-  K extends FieldElements,
-  V extends FieldElements
-> {
+class DeepSparseMerkleSubTree<K, V> {
   private nodeStore: Map<string, Field[]>;
   private valueStore: Map<string, Field>;
   private root: Field;
   private hasher: Hasher;
   private config: { hashKey: boolean; hashValue: boolean };
+  private keyType: Provable<K>;
+  private valueType: Provable<V>;
 
   /**
    * Creates an instance of DeepSparseMerkleSubTree.
    * @param {Field} root merkle root
+   * @param {Provable<K>} keyType
+   * @param {Provable<V>} valueType
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -35,6 +36,8 @@ class DeepSparseMerkleSubTree<
    */
   constructor(
     root: Field,
+    keyType: Provable<K>,
+    valueType: Provable<V>,
     options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -46,6 +49,8 @@ class DeepSparseMerkleSubTree<
     this.valueStore = new Map<string, Field>();
     this.hasher = options.hasher;
     this.config = { hashKey: options.hashKey, hashValue: options.hashValue };
+    this.keyType = keyType;
+    this.valueType = valueType;
   }
 
   /**
@@ -69,7 +74,7 @@ class DeepSparseMerkleSubTree<
   }
 
   private getKeyField(key: K): Field {
-    let keyFields = key.toFields();
+    let keyFields = this.keyType.toFields(key);
     let keyHashOrKeyField = keyFields[0];
     if (this.config.hashKey) {
       keyHashOrKeyField = this.hasher(keyFields);
@@ -81,7 +86,7 @@ class DeepSparseMerkleSubTree<
   private getValueField(value?: V): Field {
     let valueHashOrValueField = EMPTY_VALUE;
     if (value) {
-      let valueFields = value.toFields();
+      let valueFields = this.valueType.toFields(value);
       valueHashOrValueField = valueFields[0];
       if (this.config.hashValue) {
         valueHashOrValueField = this.hasher(valueFields);
@@ -189,7 +194,7 @@ class DeepSparseMerkleSubTree<
       }
     }
 
-    return new SparseMerkleProof(sideNodes, this.root);
+    return { sideNodes, root: this.root };
   }
 
   /**

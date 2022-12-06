@@ -1,5 +1,5 @@
-import { Field, Poseidon } from 'snarkyjs';
-import { FieldElements, Hasher } from '../model';
+import { Field, Poseidon, Provable } from 'snarkyjs';
+import { Hasher } from '../model';
 import { Store } from '../store/store';
 import { CompactSparseMerkleProof, CSMTUtils } from './proofs';
 import { CompactSparseMerkleTree } from './csmt';
@@ -14,14 +14,16 @@ export { CompactDeepSparseMerkleSubTree };
  * @template K
  * @template V
  */
-class CompactDeepSparseMerkleSubTree<
-  K extends FieldElements,
-  V extends FieldElements
-> extends CompactSparseMerkleTree<K, V> {
+class CompactDeepSparseMerkleSubTree<K, V> extends CompactSparseMerkleTree<
+  K,
+  V
+> {
   /**
    * Creates an instance of CompactDeepSparseMerkleSubTree.
    * @param {Store<V>} store
    * @param {Field} root
+   * @param {Provable<K>} keyType
+   * @param {Provable<V>} valueType
    * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -34,13 +36,15 @@ class CompactDeepSparseMerkleSubTree<
   constructor(
     store: Store<V>,
     root: Field,
+    keyType: Provable<K>,
+    valueType: Provable<V>,
     options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
       hashValue: true,
     }
   ) {
-    super(store, root, options);
+    super(store, keyType, valueType, root, options);
   }
 
   /**
@@ -56,7 +60,9 @@ class CompactDeepSparseMerkleSubTree<
       proof,
       this.getRoot(),
       key,
+      this.keyType,
       value,
+      this.valueType,
       {
         hasher: this.th.getHasher(),
         hashKey: this.config.hashKey,
@@ -72,7 +78,7 @@ class CompactDeepSparseMerkleSubTree<
       if (this.config.hashKey) {
         path = this.th.path(key);
       } else {
-        let keyFields = key.toFields();
+        let keyFields = this.keyType.toFields(key);
         if (keyFields.length > 1) {
           throw new Error(
             `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`

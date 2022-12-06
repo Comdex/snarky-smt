@@ -51,7 +51,7 @@ class TestZkapp extends SmartContract {
     let commitment = this.commitment.get();
     this.commitment.assertEquals(commitment);
 
-    let tree = new ProvableDeepSparseMerkleSubTree(proof1.root);
+    let tree = new ProvableDeepSparseMerkleSubTree(proof1.root, Field, Field);
     // let keyHash1 = Poseidon.hash([key1]);
     // let valueHash1 = Poseidon.hash([value1]);
     // let keyHash2 = Poseidon.hash([key2]);
@@ -80,13 +80,17 @@ class TestZkapp extends SmartContract {
   }
 }
 
-let local = Mina.LocalBlockchain();
+let local = Mina.LocalBlockchain({ proofsEnabled: doProofs });
 Mina.setActiveInstance(local);
 let feePayerKey = local.testAccounts[0].privateKey;
 let zkappKey = PrivateKey.random();
 let zkappAddress = zkappKey.toPublicKey();
 
-let tree = await SparseMerkleTree.build<Field, Field>(new MemoryStore<Field>());
+let tree = await SparseMerkleTree.build<Field, Field>(
+  new MemoryStore<Field>(),
+  Field,
+  Field
+);
 const key1 = Field(1);
 const value1 = Field(33);
 const key2 = Field(2);
@@ -125,10 +129,9 @@ async function test() {
   });
   if (doProofs) {
     await tx.prove();
-    tx.send();
-  } else {
-    tx.send();
   }
+
+  await tx.send();
 
   console.log('deploy done');
 
@@ -149,7 +152,7 @@ async function test() {
     if (!doProofs) zkapp.sign(zkappKey);
   });
   if (doProofs) await tx.prove();
-  tx.send();
+  await tx.send();
 
   console.log('end method');
   shutdown();

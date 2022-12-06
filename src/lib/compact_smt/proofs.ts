@@ -1,14 +1,14 @@
 import {
-  arrayProp,
   Bool,
-  CircuitValue,
+  Circuit,
   Field,
   isReady,
   Poseidon,
-  prop,
+  Provable,
+  Struct,
 } from 'snarkyjs';
 import { RIGHT } from '../constant';
-import { FieldElements, Hasher } from '../model';
+import { Hasher } from '../model';
 import { CP_PADD_VALUE, CSMT_DEPTH, PLACEHOLDER } from './constant';
 import { TreeHasher } from './tree_hasher';
 
@@ -21,22 +21,28 @@ export type { CSparseCompactMerkleProof };
  * Proof for compact sparse merkle tree
  *
  * @class CompactSparseMerkleProof
- * @extends {CircuitValue}
+ * @extends {Struct({
+ *   sideNodes: Circuit.array(Field, CSMT_DEPTH),
+ *   nonMembershipLeafData: Circuit.array(Field, 3),
+ *   siblingData: Circuit.array(Field, 3),
+ *   root: Field,
+ * })}
  */
-class CompactSparseMerkleProof extends CircuitValue {
-  @arrayProp(Field, CSMT_DEPTH) sideNodes: Field[];
-  @arrayProp(Field, 3) nonMembershipLeafData: Field[];
-  @arrayProp(Field, 3) siblingData: Field[];
-  @prop root: Field;
+class CompactSparseMerkleProof extends Struct({
+  sideNodes: Circuit.array(Field, CSMT_DEPTH),
+  nonMembershipLeafData: Circuit.array(Field, 3),
+  siblingData: Circuit.array(Field, 3),
+  root: Field,
+}) {
+  constructor(value: {
+    sideNodes: Field[];
+    nonMembershipLeafData: Field[];
+    siblingData: Field[];
+    root: Field;
+  }) {
+    super(value);
 
-  constructor(
-    sideNodes: Field[],
-    nonMembershipLeafData: Field[],
-    siblingData: Field[],
-    root: Field
-  ) {
-    super();
-    let len = sideNodes.length;
+    let len = value.sideNodes.length;
     if (len > CSMT_DEPTH) {
       throw new Error(
         `The length of sideNodes cannot be greater than ${CSMT_DEPTH}`
@@ -44,12 +50,11 @@ class CompactSparseMerkleProof extends CircuitValue {
     }
 
     // padd with CP_PADD_VALUE to a fixed length
-    sideNodes = sideNodes.concat(Array(CSMT_DEPTH - len).fill(CP_PADD_VALUE));
+    value.sideNodes = value.sideNodes.concat(
+      Array(CSMT_DEPTH - len).fill(CP_PADD_VALUE)
+    );
 
-    this.sideNodes = sideNodes;
-    this.nonMembershipLeafData = nonMembershipLeafData;
-    this.siblingData = siblingData;
-    this.root = root;
+    this.sideNodes = value.sideNodes;
   }
 }
 
@@ -82,7 +87,9 @@ class CSMTUtils {
    * @param {CSparseCompactMerkleProof} cproof
    * @param {Field} expectedRoot
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {V} [value]
+   * @param {Provable<V>} [valueType]
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -93,11 +100,13 @@ class CSMTUtils {
    * @return {*}  {boolean}
    * @memberof CSMTUtils
    */
-  static verifyCompactProof<K extends FieldElements, V extends FieldElements>(
+  static verifyCompactProof<K, V>(
     cproof: CSparseCompactMerkleProof,
     expectedRoot: Field,
     key: K,
+    keyType: Provable<K>,
     value?: V,
+    valueType?: Provable<V>,
     options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -105,7 +114,15 @@ class CSMTUtils {
     }
   ): boolean {
     const proof = this.decompactProof(cproof, options.hasher);
-    return this.verifyProof<K, V>(proof, expectedRoot, key, value, options);
+    return this.verifyProof<K, V>(
+      proof,
+      expectedRoot,
+      key,
+      keyType,
+      value,
+      valueType,
+      options
+    );
   }
 
   /**
@@ -117,7 +134,9 @@ class CSMTUtils {
    * @param {CompactSparseMerkleProof} proof
    * @param {Field} expectedRoot
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {V} [value]
+   * @param {Provable<V>} [valueType]
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -131,14 +150,13 @@ class CSMTUtils {
    *   })}
    * @memberof CSMTUtils
    */
-  static verifyProofWithUpdates<
-    K extends FieldElements,
-    V extends FieldElements
-  >(
+  static verifyProofWithUpdates<K, V>(
     proof: CompactSparseMerkleProof,
     expectedRoot: Field,
     key: K,
+    keyType: Provable<K>,
     value?: V,
+    valueType?: Provable<V>,
     options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -148,13 +166,13 @@ class CSMTUtils {
     ok: boolean;
     updates: [Field, Field[]][] | null;
   } {
-    const th = new TreeHasher(options.hasher);
+    const th = new TreeHasher(options.hasher, keyType, valueType);
 
     let path = null;
     if (options.hashKey) {
       path = th.path(key);
     } else {
-      let keyFields = key.toFields();
+      let keyFields = keyType.toFields(key);
       if (keyFields.length > 1) {
         throw new Error(
           `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
@@ -190,16 +208,16 @@ class CSMTUtils {
       // Membership proof
       let valueField = null;
       if (options.hashValue) {
-        valueField = th.digest(value);
+        valueField = th.digestValue(value);
       } else {
-        let valueFields = value.toFields();
-        if (valueFields.length > 1) {
+        let valueFields = valueType?.toFields(value);
+        if (valueFields!.length > 1) {
           throw new Error(
             `The length of value fields is greater than 1, the value needs to be hashed before it can be processed, option 'hashValue' must be set to true`
           );
         }
 
-        valueField = valueFields[0];
+        valueField = valueFields![0];
       }
 
       const result = th.digestLeaf(path, valueField);
@@ -259,7 +277,9 @@ class CSMTUtils {
    * @param {CompactSparseMerkleProof} proof
    * @param {Field} expectedRoot
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {V} [value]
+   * @param {Provable<V>} [valueType]
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -270,18 +290,28 @@ class CSMTUtils {
    * @return {*}  {boolean}
    * @memberof CSMTUtils
    */
-  static checkMemebership<K extends FieldElements, V extends FieldElements>(
+  static checkMemebership<K, V>(
     proof: CompactSparseMerkleProof,
     expectedRoot: Field,
     key: K,
+    keyType: Provable<K>,
     value?: V,
+    valueType?: Provable<V>,
     options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
       hashValue: true,
     }
   ): boolean {
-    return this.verifyProof<K, V>(proof, expectedRoot, key, value, options);
+    return this.verifyProof<K, V>(
+      proof,
+      expectedRoot,
+      key,
+      keyType,
+      value,
+      valueType,
+      options
+    );
   }
 
   /**
@@ -293,6 +323,7 @@ class CSMTUtils {
    * @param {CompactSparseMerkleProof} proof
    * @param {Field} expectedRoot
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {{ hasher: Hasher; hashKey: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -301,20 +332,29 @@ class CSMTUtils {
    * @return {*}  {boolean}
    * @memberof CSMTUtils
    */
-  static checkNonMemebership<K extends FieldElements, V extends FieldElements>(
+  static checkNonMemebership<K, V>(
     proof: CompactSparseMerkleProof,
     expectedRoot: Field,
     key: K,
+    keyType: Provable<K>,
     options: { hasher: Hasher; hashKey: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
     }
   ): boolean {
-    return this.verifyProof<K, V>(proof, expectedRoot, key, undefined, {
-      hasher: options.hasher,
-      hashKey: options.hashKey,
-      hashValue: true,
-    });
+    return this.verifyProof<K, V>(
+      proof,
+      expectedRoot,
+      key,
+      keyType,
+      undefined,
+      undefined,
+      {
+        hasher: options.hasher,
+        hashKey: options.hashKey,
+        hashValue: true,
+      }
+    );
   }
 
   /**
@@ -326,7 +366,9 @@ class CSMTUtils {
    * @param {CompactSparseMerkleProof} proof
    * @param {Field} root
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {V} [value]
+   * @param {Provable<V>} [valueType]
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -337,11 +379,13 @@ class CSMTUtils {
    * @return {*}  {boolean}
    * @memberof CSMTUtils
    */
-  static verifyProof<K extends FieldElements, V extends FieldElements>(
+  static verifyProof<K, V>(
     proof: CompactSparseMerkleProof,
     root: Field,
     key: K,
+    keyType: Provable<K>,
     value?: V,
+    valueType?: Provable<V>,
     options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -352,7 +396,9 @@ class CSMTUtils {
       proof,
       root,
       key,
+      keyType,
       value,
+      valueType,
       options
     );
     return ok;
@@ -393,7 +439,7 @@ class CSMTUtils {
     return {
       sideNodes: compactedSideNodes,
       nonMembershipLeafData: proof.nonMembershipLeafData,
-      bitMask: Field.ofBits(bits),
+      bitMask: Field.fromBits(bits),
       numSideNodes: oriSideNodesLength,
       siblingData: proof.siblingData,
       root: proof.root,
@@ -426,11 +472,11 @@ class CSMTUtils {
       }
     }
 
-    return new CompactSparseMerkleProof(
-      decompactedSideNodes,
-      proof.nonMembershipLeafData,
-      proof.siblingData,
-      proof.root
-    );
+    return new CompactSparseMerkleProof({
+      sideNodes: decompactedSideNodes,
+      nonMembershipLeafData: proof.nonMembershipLeafData,
+      siblingData: proof.siblingData,
+      root: proof.root,
+    });
   }
 }

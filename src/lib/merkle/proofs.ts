@@ -1,8 +1,15 @@
-import { Bool, CircuitValue, Field, isReady, Poseidon } from 'snarkyjs';
+import {
+  Bool,
+  CircuitValue,
+  Field,
+  isReady,
+  Poseidon,
+  Provable,
+} from 'snarkyjs';
 
 import { EMPTY_VALUE, RIGHT } from '../constant';
 import { defaultNodes } from '../default_nodes';
-import { FieldElements, Hasher } from '../model';
+import { Hasher } from '../model';
 import { countSetBits, fieldToHexString, hexStringToField } from '../utils';
 import { ProvableMerkleTreeUtils } from './verify_circuit';
 
@@ -104,7 +111,7 @@ class MerkleTreeUtils {
       height: h,
       root: proof.root,
       sideNodes: compactSideNodes,
-      bitMask: Field.ofBits(bits),
+      bitMask: Field.fromBits(bits),
     };
   }
 
@@ -194,6 +201,7 @@ class MerkleTreeUtils {
    * @param {BaseMerkleProof} proof
    * @param {bigint} index
    * @param {V} [value]
+   * @param {Provable<V>} [valueType]
    * @param {{ hasher: Hasher; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
@@ -202,10 +210,11 @@ class MerkleTreeUtils {
    * @return {*}  {Field}
    * @memberof MerkleTreeUtils
    */
-  static computeRoot<V extends FieldElements>(
+  static computeRoot<V>(
     proof: BaseMerkleProof,
     index: bigint,
     value?: V,
+    valueType?: Provable<V>,
     options: { hasher: Hasher; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashValue: true,
@@ -213,17 +222,17 @@ class MerkleTreeUtils {
   ): Field {
     let currentHash: Field;
     if (value !== undefined) {
+      let valueFs = valueType?.toFields(value);
       if (options.hashValue) {
-        currentHash = options.hasher(value.toFields());
+        currentHash = options.hasher(valueFs!);
       } else {
-        let fs = value.toFields();
-        if (fs.length > 1) {
+        if (valueFs!.length > 1) {
           throw new Error(
             `The length of value fields is greater than 1, the value needs to be hashed before it can be processed, option 'hashValue' must be set to true`
           );
         }
 
-        currentHash = fs[0];
+        currentHash = valueFs![0];
       }
     } else {
       currentHash = EMPTY_VALUE;
@@ -258,6 +267,7 @@ class MerkleTreeUtils {
    * @param {Field} expectedRoot
    * @param {bigint} index
    * @param {V} value
+   * @param {Provable<V>} valueType
    * @param {{ hasher: Hasher; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
@@ -266,17 +276,25 @@ class MerkleTreeUtils {
    * @return {*}  {boolean}
    * @memberof MerkleTreeUtils
    */
-  static checkMembership<V extends FieldElements>(
+  static checkMembership<V>(
     proof: BaseMerkleProof,
     expectedRoot: Field,
     index: bigint,
     value: V,
+    valueType: Provable<V>,
     options: { hasher: Hasher; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashValue: true,
     }
   ): boolean {
-    return this.verifyProof<V>(proof, expectedRoot, index, value, options);
+    return this.verifyProof<V>(
+      proof,
+      expectedRoot,
+      index,
+      value,
+      valueType,
+      options
+    );
   }
 
   /**
@@ -291,16 +309,23 @@ class MerkleTreeUtils {
    * @return {*}  {boolean}
    * @memberof MerkleTreeUtils
    */
-  static checkNonMembership<V extends FieldElements>(
+  static checkNonMembership<V>(
     proof: BaseMerkleProof,
     expectedRoot: Field,
     index: bigint,
     hasher: Hasher = Poseidon.hash
   ): boolean {
-    return this.verifyProof<V>(proof, expectedRoot, index, undefined, {
-      hasher,
-      hashValue: true,
-    });
+    return this.verifyProof<V>(
+      proof,
+      expectedRoot,
+      index,
+      undefined,
+      undefined,
+      {
+        hasher,
+        hashValue: true,
+      }
+    );
   }
 
   /**
@@ -312,6 +337,7 @@ class MerkleTreeUtils {
    * @param {Field} expectedRoot
    * @param {bigint} index
    * @param {V} [value]
+   * @param {Provable<V>} [valueType]
    * @param {{ hasher: Hasher; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
@@ -320,11 +346,12 @@ class MerkleTreeUtils {
    * @return {*}  {boolean}
    * @memberof MerkleTreeUtils
    */
-  static verifyProof<V extends FieldElements>(
+  static verifyProof<V>(
     proof: BaseMerkleProof,
     expectedRoot: Field,
     index: bigint,
     value?: V,
+    valueType?: Provable<V>,
     options: { hasher: Hasher; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashValue: true,
@@ -333,7 +360,13 @@ class MerkleTreeUtils {
     if (!proof.root.equals(expectedRoot).toBoolean()) {
       return false;
     }
-    let currentRoot = this.computeRoot<V>(proof, index, value, options);
+    let currentRoot = this.computeRoot<V>(
+      proof,
+      index,
+      value,
+      valueType,
+      options
+    );
 
     return currentRoot.equals(expectedRoot).toBoolean();
   }

@@ -1,13 +1,6 @@
-import {
-  arrayProp,
-  Bool,
-  Circuit,
-  CircuitValue,
-  Field,
-  Poseidon,
-} from 'snarkyjs';
+import { Bool, Circuit, Field, Poseidon, Provable, Struct } from 'snarkyjs';
 import { EMPTY_VALUE } from '../constant';
-import { FieldElements, Hasher } from '../model';
+import { Hasher } from '../model';
 import { BaseMerkleProof } from './proofs';
 import { ProvableMerkleTreeUtils } from './verify_circuit';
 
@@ -19,18 +12,20 @@ export { ProvableDeepMerkleSubTree };
  * @class ProvableDeepMerkleSubTree
  * @template V
  */
-class ProvableDeepMerkleSubTree<V extends FieldElements> {
+class ProvableDeepMerkleSubTree<V> {
   private nodeStore: Map<string, Field[]>;
   private valueStore: Map<string, Field>;
   private root: Field;
   private height: number;
   private hasher: Hasher;
   private hashValue: boolean;
+  private valueType: Provable<V>;
 
   /**
    * Creates an instance of ProvableDeepMerkleSubTree.
    * @param {Field} root merkle root
    * @param {number} height height of tree
+   * @param {Provable<V>} valueType
    * @param {{ hasher?: Hasher; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
@@ -41,6 +36,7 @@ class ProvableDeepMerkleSubTree<V extends FieldElements> {
   constructor(
     root: Field,
     height: number,
+    valueType: Provable<V>,
     options: { hasher?: Hasher; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashValue: true,
@@ -55,12 +51,13 @@ class ProvableDeepMerkleSubTree<V extends FieldElements> {
       this.hasher = options.hasher;
     }
     this.hashValue = options.hashValue;
+    this.valueType = valueType;
   }
 
   private getValueField(value?: V): Field {
     let valueHashOrValueField = EMPTY_VALUE;
     if (value !== undefined) {
-      let valueFields = value.toFields();
+      let valueFields = this.valueType.toFields(value);
       valueHashOrValueField = valueFields[0];
       if (this.hashValue) {
         valueHashOrValueField = this.hasher(valueFields);
@@ -178,13 +175,9 @@ class ProvableDeepMerkleSubTree<V extends FieldElements> {
     const pathBits = path.toBits(this.height);
     const valueField = this.getValueField(value);
 
-    class SideNodes extends CircuitValue {
-      @arrayProp(Field, this.height) arr: Field[];
-      constructor(arr: Field[]) {
-        super();
-        this.arr = arr;
-      }
-    }
+    class SideNodes extends Struct({
+      arr: Circuit.array(Field, this.height),
+    }) {}
 
     let fieldArr: SideNodes = Circuit.witness(SideNodes, () => {
       let sideNodes: Field[] = [];
@@ -206,7 +199,7 @@ class ProvableDeepMerkleSubTree<V extends FieldElements> {
         }
       }
 
-      return new SideNodes(sideNodes).toConstant();
+      return new SideNodes({ arr: sideNodes });
     });
 
     let sideNodes = fieldArr.arr;

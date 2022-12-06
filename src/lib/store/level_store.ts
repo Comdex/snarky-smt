@@ -1,5 +1,5 @@
 import { Level } from 'level';
-import { AsFieldElements, Field } from 'snarkyjs';
+import { Field, Provable } from 'snarkyjs';
 import { strToFieldArry } from '../utils';
 import { Store } from './store';
 import {
@@ -7,7 +7,6 @@ import {
   AbstractBatchDelOperation,
   AbstractSublevel,
 } from 'abstract-level';
-import { FieldElements } from '../model';
 
 export { LevelStore };
 
@@ -18,7 +17,7 @@ export { LevelStore };
  * @implements {Store<V>}
  * @template V
  */
-class LevelStore<V extends FieldElements> implements Store<V> {
+class LevelStore<V> implements Store<V> {
   protected db: Level<string, any>;
   protected nodesSubLevel: AbstractSublevel<
     Level<string, any>,
@@ -36,20 +35,16 @@ class LevelStore<V extends FieldElements> implements Store<V> {
     | AbstractBatchPutOperation<Level<string, any>, string, any>
     | AbstractBatchDelOperation<Level<string, any>, string>
   )[];
-  protected eltTyp: AsFieldElements<V>;
+  protected eltTyp: Provable<V>;
 
   /**
    * Creates an instance of LevelStore.
    * @param {Level<string, any>} db
-   * @param {AsFieldElements<V>} eltTyp
+   * @param {Provable<V>} eltTyp
    * @param {string} smtName
    * @memberof LevelStore
    */
-  constructor(
-    db: Level<string, any>,
-    eltTyp: AsFieldElements<V>,
-    smtName: string
-  ) {
+  constructor(db: Level<string, any>, eltTyp: Provable<V>, smtName: string) {
     this.db = db;
     this.nodesSubLevel = this.db.sublevel(smtName);
     this.leavesSubLevel = this.db.sublevel(smtName + '_leaf');
@@ -143,9 +138,9 @@ class LevelStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {V}
    * @memberof LevelStore
    */
-  protected strToValue(valueStr: string, eltTyp: AsFieldElements<V>): V {
+  protected strToValue(valueStr: string, eltTyp: Provable<V>): V {
     let fs = strToFieldArry(valueStr);
-    return eltTyp.ofFields(fs);
+    return eltTyp.fromFields(fs, eltTyp.toAuxiliary());
   }
 
   /**
@@ -170,7 +165,8 @@ class LevelStore<V extends FieldElements> implements Store<V> {
    * @memberof LevelStore
    */
   protected valueToStr(value: V): string {
-    const valueStr = value.toFields().toString();
+    const valueStr = this.eltTyp.toFields(value).toString();
+
     return valueStr;
   }
 

@@ -20,7 +20,7 @@ describe('SparseMerkleTree', () => {
 
   beforeEach(async () => {
     await isReady;
-    tree = await MerkleTree.build<Field>(new MemoryStore<Field>(), 8);
+    tree = await MerkleTree.build(new MemoryStore<Field>(), 8, Field);
   });
 
   it('should create and verify proof correctly', async () => {
@@ -39,7 +39,9 @@ describe('SparseMerkleTree', () => {
     const root = tree.getRoot();
     for (let i = 0; i < updateTimes; i++) {
       const proof = await tree.prove(keys[i]);
-      expect(MerkleTreeUtils.checkMembership(proof, root, keys[i], values[i]));
+      expect(
+        MerkleTreeUtils.checkMembership(proof, root, keys[i], values[i], Field)
+      );
     }
 
     const key = keys[0];
@@ -75,7 +77,7 @@ describe('SparseMerkleTree', () => {
 
     const cproof = await tree.proveCompact(x);
     const proof = MerkleTreeUtils.decompactMerkleProof(cproof);
-    expect(MerkleTreeUtils.checkMembership(proof, root, x, y));
+    expect(MerkleTreeUtils.checkMembership(proof, root, x, y, Field));
   });
 
   it('should verify proof in circuit correctly', async () => {
@@ -94,7 +96,8 @@ describe('SparseMerkleTree', () => {
         proof,
         root,
         Field(x),
-        y
+        y,
+        Field
       ).assertTrue();
       ProvableMerkleTreeUtils.checkNonMembership(
         zproof,

@@ -1,6 +1,6 @@
-import { Bool, Circuit, Field, Poseidon } from 'snarkyjs';
+import { Bool, Circuit, Field, Poseidon, Provable } from 'snarkyjs';
 import { EMPTY_VALUE, SMT_DEPTH } from '../constant';
-import { FieldElements, Hasher } from '../model';
+import { Hasher } from '../model';
 import { SparseMerkleProof } from './proofs';
 
 export { ProvableSMTUtils };
@@ -55,7 +55,9 @@ class ProvableSMTUtils {
    * @param {SparseMerkleProof} proof
    * @param {Field} expectedRoot
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {V} value
+   * @param {Provable<V>} valueType
    * @param {{ hasher?: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -66,11 +68,13 @@ class ProvableSMTUtils {
    * @return {*}  {Bool}
    * @memberof ProvableSMTUtils
    */
-  static checkMembership<K extends FieldElements, V extends FieldElements>(
+  static checkMembership<K, V>(
     proof: SparseMerkleProof,
     expectedRoot: Field,
     key: K,
+    keyType: Provable<K>,
     value: V,
+    valueType: Provable<V>,
     options: { hasher?: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -81,8 +85,8 @@ class ProvableSMTUtils {
     if (options.hasher !== undefined) {
       hasher = options.hasher;
     }
-    let keyFields = key.toFields();
-    let valueFields = value.toFields();
+    let keyFields = keyType.toFields(key);
+    let valueFields = valueType.toFields(value);
     let keyHashOrKeyField = keyFields[0];
     if (options.hashKey) {
       keyHashOrKeyField = hasher(keyFields);
@@ -109,6 +113,7 @@ class ProvableSMTUtils {
    * @param {SparseMerkleProof} proof
    * @param {Field} expectedRoot
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {{ hasher?: Hasher; hashKey: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -118,10 +123,11 @@ class ProvableSMTUtils {
    * @return {*}  {Bool}
    * @memberof ProvableSMTUtils
    */
-  static checkNonMembership<K extends FieldElements>(
+  static checkNonMembership<K>(
     proof: SparseMerkleProof,
     expectedRoot: Field,
     key: K,
+    keyType: Provable<K>,
     options: { hasher?: Hasher; hashKey: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -132,7 +138,7 @@ class ProvableSMTUtils {
       hasher = options.hasher;
     }
 
-    let keyFields = key.toFields();
+    let keyFields = keyType.toFields(key);
     let keyHashOrKeyField = keyFields[0];
     if (options.hashKey) {
       keyHashOrKeyField = hasher(keyFields);
@@ -155,7 +161,9 @@ class ProvableSMTUtils {
    * @template V
    * @param {Field[]} sideNodes
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {V} value
+   * @param {Provable<V>} valueType
    * @param {{ hasher?: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -164,10 +172,12 @@ class ProvableSMTUtils {
    * @return {*}  {Field}
    * @memberof ProvableSMTUtils
    */
-  static computeRoot<K extends FieldElements, V extends FieldElements>(
+  static computeRoot<K, V>(
     sideNodes: Field[],
     key: K,
+    keyType: Provable<K>,
     value: V,
+    valueType: Provable<V>,
     options: { hasher?: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -179,8 +189,8 @@ class ProvableSMTUtils {
       hasher = options.hasher;
     }
 
-    let keyFields = key.toFields();
-    let valueFields = value.toFields();
+    let keyFields = keyType.toFields(key);
+    let valueFields = valueType.toFields(value);
     let keyHashOrKeyField = keyFields[0];
     if (options.hashKey) {
       keyHashOrKeyField = hasher(keyFields);

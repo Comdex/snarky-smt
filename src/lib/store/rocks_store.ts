@@ -1,7 +1,6 @@
-import { AsFieldElements, Field } from 'snarkyjs';
+import { Provable, Field } from 'snarkyjs';
 import { strToFieldArry } from '../utils';
 import { Store } from './store';
-import { FieldElements } from '../model';
 
 import levelup from 'levelup';
 
@@ -14,25 +13,21 @@ export { RocksStore };
  * @implements {Store<V>}
  * @template V
  */
-class RocksStore<V extends FieldElements> implements Store<V> {
+class RocksStore<V> implements Store<V> {
   protected db: levelup.LevelUp;
   protected batch: levelup.LevelUpChain;
   protected nodesKey: string;
   protected leavesKey: string;
-  protected eltTyp: AsFieldElements<V>;
+  protected eltTyp: Provable<V>;
 
   /**
    * Creates an instance of RocksStore.
    * @param {levelup.LevelUp} db
-   * @param {AsFieldElements<V>} eltTyp
+   * @param {Provable<V>} eltTyp
    * @param {string} smtName
    * @memberof RocksStore
    */
-  constructor(
-    db: levelup.LevelUp,
-    eltTyp: AsFieldElements<V>,
-    smtName: string
-  ) {
+  constructor(db: levelup.LevelUp, eltTyp: Provable<V>, smtName: string) {
     this.db = db;
     this.batch = db.batch();
     this.nodesKey = smtName + ':';
@@ -116,9 +111,9 @@ class RocksStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {V}
    * @memberof RocksStore
    */
-  protected strToValue(valueStr: string, eltTyp: AsFieldElements<V>): V {
+  protected strToValue(valueStr: string, eltTyp: Provable<V>): V {
     let fs = strToFieldArry(valueStr);
-    return eltTyp.ofFields(fs);
+    return eltTyp.fromFields(fs, eltTyp.toAuxiliary());
   }
 
   /**
@@ -143,7 +138,7 @@ class RocksStore<V extends FieldElements> implements Store<V> {
    * @memberof RocksStore
    */
   protected valueToStr(value: V): string {
-    const valueStr = value.toFields().toString();
+    const valueStr = this.eltTyp.toFields(value).toString();
     return valueStr;
   }
 
