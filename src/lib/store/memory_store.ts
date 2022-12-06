@@ -1,5 +1,4 @@
 import { Field } from 'snarkyjs';
-import { FieldElements } from '../model';
 import { Store } from './store';
 
 export { MemoryStore };
@@ -21,7 +20,7 @@ const enum OperationType {
  * @implements {Store<V>}
  * @template V
  */
-class MemoryStore<V extends FieldElements> implements Store<V> {
+class MemoryStore<V> implements Store<V> {
   protected nodesMap: Map<string, Field[]>;
   protected valuesMap: Map<string, V>;
 

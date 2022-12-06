@@ -8,7 +8,6 @@ Merkle Trees give developers the power of storing large amounts of data off-chai
 
 import {
   AccountUpdate,
-  CircuitValue,
   DeployArgs,
   Field,
   isReady,
@@ -17,12 +16,12 @@ import {
   Permissions,
   Poseidon,
   PrivateKey,
-  prop,
   PublicKey,
   shutdown,
   SmartContract,
   State,
   state,
+  Struct,
   UInt32,
   UInt64,
 } from 'snarkyjs';
@@ -36,22 +35,17 @@ const doProofs = true;
 
 class MerkleProof extends ProvableMerkleTreeUtils.MerkleProof(8) {}
 
-class Account extends CircuitValue {
-  @prop publicKey: PublicKey;
-  @prop points: UInt32;
-
-  constructor(publicKey: PublicKey, points: UInt32) {
-    super(publicKey, points);
-    this.publicKey = publicKey;
-    this.points = points;
-  }
-
+class Account extends Struct({ publicKey: PublicKey, points: UInt32 }) {
   addPoints(n: number): Account {
-    return new Account(this.publicKey, this.points.add(n));
+    return new Account({
+      publicKey: this.publicKey,
+      points: this.points.add(n),
+    });
   }
 }
+
 // we need the initiate tree root in order to tell the contract about our off-chain storage
-let initialCommitment: Field = Field.zero;
+let initialCommitment: Field = Field(0);
 /*
     We want to write a smart contract that serves as a leaderboard,
     but only has the commitment of the off-chain storage stored in an on-chain variable.
@@ -69,7 +63,7 @@ class Leaderboard extends SmartContract {
       ...Permissions.default(),
       editState: Permissions.proofOrSignature(),
     });
-    this.balance.addInPlace(UInt64.fromNumber(initialBalance));
+    this.balance.addInPlace(UInt64.from(initialBalance));
     this.commitment.set(initialCommitment);
   }
 
@@ -91,7 +85,8 @@ class Leaderboard extends SmartContract {
     let newCommitment = ProvableMerkleTreeUtils.computeRoot(
       proof,
       index,
-      account
+      account,
+      Account
     );
     this.commitment.set(newCommitment);
   }
@@ -119,7 +114,8 @@ class Leaderboard extends SmartContract {
       proof,
       commitment,
       index,
-      account
+      account,
+      Account
     ).assertTrue();
 
     // we update the account and grant one point!
@@ -129,7 +125,8 @@ class Leaderboard extends SmartContract {
     let newCommitment = ProvableMerkleTreeUtils.computeRoot(
       proof,
       index,
-      newAccount
+      newAccount,
+      Account
     );
 
     this.commitment.set(newCommitment);
@@ -146,15 +143,27 @@ let feePayer = Local.testAccounts[0].privateKey;
 let zkappKey = PrivateKey.random();
 let zkappAddress = zkappKey.toPublicKey();
 
-let bob = new Account(Local.testAccounts[0].publicKey, UInt32.from(0));
-let alice = new Account(Local.testAccounts[1].publicKey, UInt32.from(0));
-let charlie = new Account(Local.testAccounts[2].publicKey, UInt32.from(0));
-let olivia = new Account(Local.testAccounts[3].publicKey, UInt32.from(5));
+let bob = new Account({
+  publicKey: Local.testAccounts[0].publicKey,
+  points: UInt32.from(0),
+});
+let alice = new Account({
+  publicKey: Local.testAccounts[1].publicKey,
+  points: UInt32.from(0),
+});
+let charlie = new Account({
+  publicKey: Local.testAccounts[2].publicKey,
+  points: UInt32.from(0),
+});
+let olivia = new Account({
+  publicKey: Local.testAccounts[3].publicKey,
+  points: UInt32.from(5),
+});
 
 // we now need "wrap" the Merkle tree around our off-chain storage
 // we initialize a new Merkle Tree with height 8
 let store = new MemoryStore<Account>();
-let tree = await MerkleTree.build<Account>(store, 8);
+let tree = await MerkleTree.build<Account>(store, 8, Account as any);
 
 await tree.update(0n, bob);
 await tree.update(1n, alice);
@@ -174,7 +183,7 @@ let tx = await Mina.transaction(feePayer, () => {
   AccountUpdate.fundNewAccount(feePayer, { initialBalance });
   leaderboardZkApp.deploy({ zkappKey });
 });
-tx.send();
+await tx.send();
 
 console.log('Initial points: ' + (await tree.get(0n))?.points);
 
@@ -199,7 +208,7 @@ async function addNewAccount(index: bigint, account: Account) {
   if (doProofs) {
     await tx.prove();
   }
-  tx.send();
+  await tx.send();
 
   await tree.update(index, account!);
   leaderboardZkApp.commitment.get().assertEquals(tree.getRoot());
@@ -219,7 +228,7 @@ async function makeGuess(index: bigint, guess: number) {
   if (doProofs) {
     await tx.prove();
   }
-  tx.send();
+  await tx.send();
 
   // if the transaction was successful, we can update our off-chain storage as well
   account!.points = account!.points.add(1);

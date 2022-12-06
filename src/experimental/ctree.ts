@@ -6,7 +6,7 @@ import { MemoryStore } from '../lib/store/memory_store';
 
 await isReady;
 
-let tree = new CompactSparseMerkleTree<Field, Field>(new MemoryStore<Field>());
+let tree = new CompactSparseMerkleTree(new MemoryStore<Field>(), Field, Field);
 
 let root = await tree.update(Field(1), Field(2));
 root = await tree.update(Field(3), Field(4));
@@ -26,7 +26,9 @@ console.log('root2: ', root2.toString());
 
 let subTree = new CompactDeepSparseMerkleSubTree(
   new MemoryStore<Field>(),
-  root
+  root,
+  Field,
+  Field
 );
 await subTree.addBranch(proof1, Field(1), Field(2));
 await subTree.addBranch(proof2, Field(3), Field(4));

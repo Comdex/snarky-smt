@@ -1,4 +1,4 @@
-import { AsFieldElements, Bool, CircuitValue, Field } from 'snarkyjs';
+import { Bool, Field, Provable } from 'snarkyjs';
 
 export {
   createEmptyValue,
@@ -11,22 +11,20 @@ export {
 };
 
 /**
- * Create a empty value for a CircuitValue Type
+ * Create a empty value for a Struct Type
  *
  * @template T
- * @param {AsFieldElements<T>} valueType
+ * @param {Provable<T>} valueType
  * @return {*}  {T}
  */
-function createEmptyValue<T extends CircuitValue>(
-  valueType: AsFieldElements<T>
-): T {
+function createEmptyValue<T>(valueType: Provable<T>): T {
   const dummy = (() => {
     const n = valueType.sizeInFields();
     const xs = [];
     for (var i = 0; i < n; ++i) {
       xs.push(Field.zero);
     }
-    return valueType.ofFields(xs);
+    return valueType.fromFields(xs, valueType.toAuxiliary());
   })();
 
   return dummy;

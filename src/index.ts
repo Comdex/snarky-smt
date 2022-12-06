@@ -16,7 +16,7 @@ export * from './lib/compact_smt/proofs';
 export * from './lib/compact_smt/deep_subtree';
 export * from './lib/compact_smt/verify_circuit';
 
-export type { FieldElements, Hasher } from './lib/model';
+export type { Hasher } from './lib/model';
 export * from './lib/default_nodes';
 export * from './lib/utils';
 export type { Store } from './lib/store/store';

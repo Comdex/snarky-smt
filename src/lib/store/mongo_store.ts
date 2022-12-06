@@ -1,5 +1,4 @@
-import { AsFieldElements, Field } from 'snarkyjs';
-import { FieldElements } from '../model';
+import { Field, Provable } from 'snarkyjs';
 import { Store } from './store';
 import mongoose, { Schema, model, Model } from 'mongoose';
 import { strToFieldArry } from '../utils';
@@ -23,24 +22,23 @@ const kvSchema = new Schema<IKV>({
  * @implements {Store<V>}
  * @template V
  */
-class MongoStore<V extends FieldElements> implements Store<V> {
+class MongoStore<V> implements Store<V> {
   protected db: mongoose.Connection;
   protected nodesModel: Model<IKV, {}, {}, {}, any>;
   protected valuesModel: Model<IKV, {}, {}, {}, any>;
 
   protected nodesOperationCache: any[];
   protected valuesOperationCache: any[];
-  protected eltTyp: AsFieldElements<V>;
+  protected eltTyp: Provable<V>;
 
   /**
    * Creates an instance of MongoStore.
+   * @param {mongoose.Connection} db
+   * @param {Provable<V>} eltTyp
+   * @param {string} smtName
    * @memberof MongoStore
    */
-  constructor(
-    db: mongoose.Connection,
-    eltTyp: AsFieldElements<V>,
-    smtName: string
-  ) {
+  constructor(db: mongoose.Connection, eltTyp: Provable<V>, smtName: string) {
     this.db = db;
     this.nodesModel = model<IKV>(smtName, kvSchema);
     this.valuesModel = model<IKV>(smtName + '_leaf', kvSchema);
@@ -139,9 +137,9 @@ class MongoStore<V extends FieldElements> implements Store<V> {
    * @return {*}  {V}
    * @memberof MongoStore
    */
-  protected strToValue(valueStr: string, eltTyp: AsFieldElements<V>): V {
+  protected strToValue(valueStr: string, eltTyp: Provable<V>): V {
     let fs = strToFieldArry(valueStr);
-    return eltTyp.ofFields(fs);
+    return eltTyp.fromFields(fs, eltTyp.toAuxiliary());
   }
 
   /**
@@ -158,6 +156,19 @@ class MongoStore<V extends FieldElements> implements Store<V> {
   }
 
   /**
+   * Serialize the value of the FieldElements type into a string
+   *
+   * @protected
+   * @param {V} value
+   * @return {*}  {string}
+   * @memberof RocksStore
+   */
+  protected valueToStr(value: V): string {
+    const valueStr = this.eltTyp.toFields(value).toString();
+    return valueStr;
+  }
+
+  /**
    * Prepare put the value for a key. Use the commit() method to actually submit changes.
    *
    * @param {Field} path
@@ -169,7 +180,9 @@ class MongoStore<V extends FieldElements> implements Store<V> {
       updateOne: {
         filter: { _id: path.toString() },
         upsert: true,
-        update: { value: value.toString() },
+        update: {
+          value: this.valueToStr(value),
+        },
       },
     });
   }

@@ -35,7 +35,7 @@ const treeHeight = 3;
 class MerkleProof extends ProvableMerkleTreeUtils.MerkleProof(treeHeight) {}
 
 // we need the initiate tree root in order to tell the contract about our off-chain storage
-let initialCommitment: Field = Field.zero;
+let initialCommitment: Field = Field(0);
 /*
       We want to write a smart contract that serves as a leaderboard,
       but only has the commitment of the off-chain storage stored in an on-chain variable.
@@ -53,7 +53,7 @@ class Leaderboard extends SmartContract {
       ...Permissions.default(),
       editState: Permissions.proofOrSignature(),
     });
-    this.balance.addInPlace(UInt64.fromNumber(initialBalance));
+    this.balance.addInPlace(UInt64.from(initialBalance));
     this.commitment.set(initialCommitment);
   }
 
@@ -73,9 +73,15 @@ class Leaderboard extends SmartContract {
     ).assertTrue();
 
     // Add a new account under the same numeric index.
-    let newCommitment = ProvableMerkleTreeUtils.computeRoot(proof, index, f, {
-      hashValue: false,
-    });
+    let newCommitment = ProvableMerkleTreeUtils.computeRoot(
+      proof,
+      index,
+      f,
+      Field,
+      {
+        hashValue: false,
+      }
+    );
     this.commitment.set(newCommitment);
   }
 
@@ -93,9 +99,16 @@ class Leaderboard extends SmartContract {
     this.commitment.assertEquals(commitment);
 
     // we check that the account is within the committed Merkle Tree
-    ProvableMerkleTreeUtils.checkMembership(proof, commitment, index, f, {
-      hashValue: false,
-    }).assertTrue();
+    ProvableMerkleTreeUtils.checkMembership(
+      proof,
+      commitment,
+      index,
+      f,
+      Field,
+      {
+        hashValue: false,
+      }
+    ).assertTrue();
     Circuit.asProver(() => {
       console.log('proof verify ok');
     });
@@ -108,6 +121,7 @@ class Leaderboard extends SmartContract {
       proof,
       index,
       newField,
+      Field,
       { hashValue: false }
     );
     Circuit.asProver(() => {
@@ -136,7 +150,7 @@ let olivia = Field(4);
 // we now need "wrap" the Merkle tree around our off-chain storage
 // we initialize a new Merkle Tree with height 8
 let store = new MemoryStore<Field>();
-let tree = await MerkleTree.build<Field>(store, treeHeight, {
+let tree = await MerkleTree.build(store, treeHeight, Field, {
   hashValue: false,
 });
 
@@ -160,7 +174,7 @@ let tx = await Mina.transaction(feePayer, () => {
   AccountUpdate.fundNewAccount(feePayer, { initialBalance });
   leaderboardZkApp.deploy({ zkappKey });
 });
-tx.send();
+await tx.send();
 
 console.log('Initial f: ' + (await tree.get(0n))?.toString());
 
@@ -185,7 +199,7 @@ async function addNewField(index: bigint, f: Field) {
   if (doProofs) {
     await tx.prove();
   }
-  tx.send();
+  await tx.send();
 
   await tree.update(index, f!);
   leaderboardZkApp.commitment.get().assertEquals(tree.getRoot());
@@ -207,7 +221,7 @@ async function makeGuess(index: bigint, guess: number) {
   if (doProofs) {
     await tx.prove();
   }
-  tx.send();
+  await tx.send();
   console.log('proof ok');
   // if the transaction was successful, we can update our off-chain storage as well
   let newField = f!.add(1);

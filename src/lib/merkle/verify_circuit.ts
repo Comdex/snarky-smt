@@ -1,6 +1,6 @@
-import { arrayProp, Bool, Circuit, Field, Poseidon } from 'snarkyjs';
+import { arrayProp, Bool, Circuit, Field, Poseidon, Provable } from 'snarkyjs';
 import { EMPTY_VALUE } from '../constant';
-import { FieldElements, Hasher } from '../model';
+import { Hasher } from '../model';
 import { BaseMerkleProof } from './proofs';
 
 export { ProvableMerkleTreeUtils };
@@ -49,6 +49,7 @@ class ProvableMerkleTreeUtils {
    * @param {BaseMerkleProof} proof
    * @param {Field} index
    * @param {V} value
+   * @param {Provable<V>} valueType
    * @param {{ hasher?: Hasher; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
@@ -57,10 +58,11 @@ class ProvableMerkleTreeUtils {
    * @return {*}  {Field}
    * @memberof ProvableMerkleTreeUtils
    */
-  static computeRoot<V extends FieldElements>(
+  static computeRoot<V>(
     proof: BaseMerkleProof,
     index: Field,
     value: V,
+    valueType: Provable<V>,
     options: { hasher?: Hasher; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashValue: true,
@@ -70,7 +72,7 @@ class ProvableMerkleTreeUtils {
     if (options.hasher !== undefined) {
       hasher = options.hasher;
     }
-    let valueFields = value.toFields();
+    let valueFields = valueType.toFields(value);
     let valueHashOrValueField = valueFields[0];
     if (options.hashValue) {
       valueHashOrValueField = hasher(valueFields);
@@ -93,6 +95,7 @@ class ProvableMerkleTreeUtils {
    * @param {Field} expectedRoot
    * @param {Field} index
    * @param {V} value
+   * @param {Provable<V>} valueType
    * @param {{ hasher?: Hasher; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
@@ -101,17 +104,24 @@ class ProvableMerkleTreeUtils {
    * @return {*}  {Bool}
    * @memberof ProvableMerkleTreeUtils
    */
-  static checkMembership<V extends FieldElements>(
+  static checkMembership<V>(
     proof: BaseMerkleProof,
     expectedRoot: Field,
     index: Field,
     value: V,
+    valueType: Provable<V>,
     options: { hasher?: Hasher; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashValue: true,
     }
   ): Bool {
-    const currentRoot = this.computeRoot(proof, index, value, options);
+    const currentRoot = this.computeRoot(
+      proof,
+      index,
+      value,
+      valueType,
+      options
+    );
     return expectedRoot.equals(currentRoot);
   }
 

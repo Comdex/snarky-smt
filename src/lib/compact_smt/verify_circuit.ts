@@ -1,5 +1,4 @@
-import { Bool, Circuit, Field } from 'snarkyjs';
-import { FieldElements } from '../model';
+import { Bool, Circuit, Field, Provable } from 'snarkyjs';
 import { CP_PADD_VALUE, CSMT_DEPTH, PLACEHOLDER } from './constant';
 import { CompactSparseMerkleProof } from './proofs';
 import { TreeHasher } from './tree_hasher';
@@ -21,7 +20,9 @@ class ProvableCSMTUtils {
    * @param {CompactSparseMerkleProof} proof
    * @param {Field} expectedRoot
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {V} value
+   * @param {Provable<V>} valueType
    * @param {{
    *       treeHasher: TreeHasher<K, V>;
    *       hashKey: boolean;
@@ -36,17 +37,19 @@ class ProvableCSMTUtils {
    * @return {*}  {Bool}
    * @memberof ProvableCSMTUtils
    */
-  static checkMembership<K extends FieldElements, V extends FieldElements>(
+  static checkMembership<K, V>(
     proof: CompactSparseMerkleProof,
     expectedRoot: Field,
     key: K,
+    keyType: Provable<K>,
     value: V,
+    valueType: Provable<V>,
     options: {
       treeHasher: TreeHasher<K, V>;
       hashKey: boolean;
       hashValue: boolean;
     } = {
-      treeHasher: TreeHasher.poseidon(),
+      treeHasher: TreeHasher.poseidon(keyType, valueType),
       hashKey: true,
       hashValue: true,
     }
@@ -56,13 +59,13 @@ class ProvableCSMTUtils {
     if (options.hashKey) {
       keyHashOrKeyField = th.path(key);
     } else {
-      keyHashOrKeyField = key.toFields()[0];
+      keyHashOrKeyField = keyType.toFields(key)[0];
     }
     let valueHashOrValueField = null;
     if (options.hashValue) {
-      valueHashOrValueField = th.digest(value);
+      valueHashOrValueField = th.digestValue(value);
     } else {
-      valueHashOrValueField = value.toFields()[0];
+      valueHashOrValueField = valueType.toFields(value)[0];
     }
 
     const path = keyHashOrKeyField;
@@ -85,6 +88,7 @@ class ProvableCSMTUtils {
    * @param {CompactSparseMerkleProof} proof
    * @param {Field} expectedRoot
    * @param {K} key
+   * @param {Provable<K>} keyType
    * @param {{ treeHasher: TreeHasher<K, V>; hashKey: boolean }} [options={
    *       treeHasher: TreeHasher.poseidon(),
    *       hashKey: true,
@@ -93,12 +97,13 @@ class ProvableCSMTUtils {
    * @return {*}  {Bool}
    * @memberof ProvableCSMTUtils
    */
-  static checkNonMembership<K extends FieldElements, V extends FieldElements>(
+  static checkNonMembership<K, V>(
     proof: CompactSparseMerkleProof,
     expectedRoot: Field,
     key: K,
+    keyType: Provable<K>,
     options: { treeHasher: TreeHasher<K, V>; hashKey: boolean } = {
-      treeHasher: TreeHasher.poseidon(),
+      treeHasher: TreeHasher.poseidon(keyType),
       hashKey: true,
     }
   ): Bool {
@@ -107,7 +112,7 @@ class ProvableCSMTUtils {
     if (options.hashKey) {
       keyHashOrKeyField = th.path(key);
     } else {
-      keyHashOrKeyField = key.toFields()[0];
+      keyHashOrKeyField = keyType.toFields(key)[0];
     }
 
     const path = keyHashOrKeyField;
@@ -131,7 +136,7 @@ class ProvableCSMTUtils {
   }
 }
 
-function computeRootInCircuit<K extends FieldElements, V extends FieldElements>(
+function computeRootInCircuit<K, V>(
   sideNodes: Field[],
   keyHashOrKeyField: Field,
   valueHashOrValueField: Field,

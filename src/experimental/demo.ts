@@ -1,4 +1,4 @@
-import { Field, isReady, Poseidon, shutdown } from 'snarkyjs';
+import { Field, isReady, shutdown } from 'snarkyjs';
 import { DeepMerkleSubTree } from '../lib/merkle/deep_subtree';
 import { MerkleTree } from '../lib/merkle/merkle_tree';
 import { MerkleTreeUtils } from '../lib/merkle/proofs';
@@ -12,7 +12,11 @@ await isReady;
 // printBits(Field(2).toBits(), '2');
 
 const treeHeight = 5;
-let tree = await MerkleTree.build<Field>(new MemoryStore<Field>(), treeHeight);
+let tree = await MerkleTree.build<Field>(
+  new MemoryStore<Field>(),
+  treeHeight,
+  Field
+);
 const key1 = 0n;
 const value1 = Field(33);
 const key2 = 1n;
@@ -35,7 +39,7 @@ root = await tree.update(key2, Field(99));
 root = await tree.update(key3, Field(1010));
 console.log('after root: ', root.toString());
 
-let deepSubTree = new DeepMerkleSubTree(proof1.root, treeHeight);
+let deepSubTree = new DeepMerkleSubTree(proof1.root, treeHeight, Field);
 
 deepSubTree.addBranch(proof1, key1, value1);
 deepSubTree.addBranch(proof2, key2, value2);
@@ -43,7 +47,13 @@ deepSubTree.addBranch(proof3, key3, value3);
 
 let finalRoot = deepSubTree.update(key1, Field(88));
 let proofTemp = deepSubTree.prove(key2);
-let tempOk = MerkleTreeUtils.verifyProof(proofTemp, finalRoot, key2, value2);
+let tempOk = MerkleTreeUtils.verifyProof(
+  proofTemp,
+  finalRoot,
+  key2,
+  value2,
+  Field
+);
 console.log('tempOk: ', tempOk);
 
 // let proofTemp2 = deepSubTree.prove(Field(10));

@@ -1,7 +1,7 @@
-import { Field, Poseidon } from 'snarkyjs';
+import { Field, Poseidon, Provable } from 'snarkyjs';
 import { EMPTY_VALUE, RIGHT, SMT_DEPTH } from '../constant';
 import { defaultNodes } from '../default_nodes';
-import { FieldElements, Hasher } from '../model';
+import { Hasher } from '../model';
 import { Store } from '../store/store';
 import {
   SMTUtils,
@@ -18,7 +18,7 @@ export { SparseMerkleTree };
  * @template K
  * @template V
  */
-class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
+class SparseMerkleTree<K, V> {
   /**
    * Initial empty tree root based on poseidon hash algorithm
    *
@@ -33,6 +33,8 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
   protected store: Store<V>;
   protected hasher: Hasher;
   protected config: { hashKey: boolean; hashValue: boolean };
+  protected keyType: Provable<K>;
+  protected valueType: Provable<V>;
 
   /**
    * Build a new sparse merkle tree
@@ -41,6 +43,8 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
    * @template K
    * @template V
    * @param {Store<V>} store
+   * @param {Provable<K>} KeyType
+   * @param {Provable<V>} ValueType
    * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -51,8 +55,10 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
    * @return {*}  {Promise<SparseMerkleTree<K, V>>}
    * @memberof SparseMerkleTree
    */
-  public static async build<K extends FieldElements, V extends FieldElements>(
+  public static async build<K, V>(
     store: Store<V>,
+    KeyType: Provable<K>,
+    ValueType: Provable<V>,
     options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -83,7 +89,14 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     store.prepareUpdateRoot(root);
     await store.commit();
 
-    return new SparseMerkleTree(root, store, hasher, config);
+    return new SparseMerkleTree(
+      root,
+      store,
+      KeyType,
+      ValueType,
+      hasher,
+      config
+    );
   }
 
   /**
@@ -93,6 +106,8 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
    * @template K
    * @template V
    * @param {Store<V>} store
+   * @param {Provable<K>} keyType
+   * @param {Provable<V>} valueType
    * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -103,8 +118,10 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
    * @return {*}  {Promise<SparseMerkleTree<K, V>>}
    * @memberof SparseMerkleTree
    */
-  public static async import<K extends FieldElements, V extends FieldElements>(
+  public static async import<K, V>(
     store: Store<V>,
+    keyType: Provable<K>,
+    valueType: Provable<V>,
     options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -125,12 +142,21 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
 
     const root: Field = await store.getRoot();
 
-    return new SparseMerkleTree(root, store, hasher, config);
+    return new SparseMerkleTree(
+      root,
+      store,
+      keyType,
+      valueType,
+      hasher,
+      config
+    );
   }
 
   private constructor(
     root: Field,
     store: Store<V>,
+    keyType: Provable<K>,
+    valueType: Provable<V>,
     hasher: Hasher,
     config: { hashKey: boolean; hashValue: boolean }
   ) {
@@ -138,10 +164,12 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     this.hasher = hasher;
     this.config = config;
     this.root = root;
+    this.keyType = keyType;
+    this.valueType = valueType;
   }
 
   private getKeyField(key: K): Field {
-    let keyFields = key.toFields();
+    let keyFields = this.keyType.toFields(key);
     let keyHashOrKeyField = keyFields[0];
     if (this.config.hashKey) {
       keyHashOrKeyField = this.digest(keyFields);
@@ -380,7 +408,7 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
   ): Field {
     let currentHash: Field;
     if (value !== undefined) {
-      const valueFields = value.toFields();
+      const valueFields = this.valueType.toFields(value);
 
       if (this.config.hashValue) {
         currentHash = this.digest(valueFields);
@@ -415,7 +443,7 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
     const pathBits = path.toBits();
     for (let i = this.depth() - 1; i >= 0; i--) {
       let sideNode = sideNodes[i];
-      let currentValue = [];
+      let currentValue: Field[] = [];
       if (pathBits[i].toBoolean() === RIGHT) {
         currentValue = [sideNode, currentHash];
       } else {
@@ -476,6 +504,6 @@ class SparseMerkleTree<K extends FieldElements, V extends FieldElements> {
 
     const { sideNodes } = await this.sideNodesForRoot(root, path);
 
-    return new SparseMerkleProof(sideNodes, root);
+    return { sideNodes, root };
   }
 }

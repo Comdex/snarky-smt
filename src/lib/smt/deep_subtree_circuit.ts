@@ -1,25 +1,12 @@
-import {
-  arrayProp,
-  Bool,
-  Circuit,
-  CircuitValue,
-  Field,
-  Poseidon,
-} from 'snarkyjs';
+import { Bool, Circuit, Field, Poseidon, Provable, Struct } from 'snarkyjs';
 import { EMPTY_VALUE, SMT_DEPTH } from '../constant';
-import { FieldElements, Hasher } from '../model';
+import { Hasher } from '../model';
 import { SparseMerkleProof } from './proofs';
 
 export { ProvableDeepSparseMerkleSubTree };
 
-class SMTSideNodes extends CircuitValue {
-  @arrayProp(Field, SMT_DEPTH) arr: Field[];
+class SMTSideNodes extends Struct({ arr: Circuit.array(Field, SMT_DEPTH) }) {}
 
-  constructor(arr: Field[]) {
-    super();
-    this.arr = arr;
-  }
-}
 /**
  * ProvableDeepSparseMerkleSubTree is a deep sparse merkle subtree for working on only a few leafs in circuit.
  *
@@ -27,18 +14,20 @@ class SMTSideNodes extends CircuitValue {
  * @template K
  * @template V
  */
-class ProvableDeepSparseMerkleSubTree<
-  K extends FieldElements,
-  V extends FieldElements
-> {
+class ProvableDeepSparseMerkleSubTree<K, V> {
   private nodeStore: Map<string, Field[]>;
   private valueStore: Map<string, Field>;
   private root: Field;
   private hasher: Hasher;
   private config: { hashKey: boolean; hashValue: boolean };
+  private keyType: Provable<K>;
+  private valueType: Provable<V>;
+
   /**
    * Creates an instance of ProvableDeepSparseMerkleSubTree.
    * @param {Field} root merkle root
+   * @param {Provable<K>} keyType
+   * @param {Provable<V>} valueType
    * @param {{ hasher: Hasher; hashKey: boolean; hashValue: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -50,6 +39,8 @@ class ProvableDeepSparseMerkleSubTree<
    */
   constructor(
     root: Field,
+    keyType: Provable<K>,
+    valueType: Provable<V>,
     options: { hasher: Hasher; hashKey: boolean; hashValue: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -61,6 +52,8 @@ class ProvableDeepSparseMerkleSubTree<
     this.valueStore = new Map<string, Field>();
     this.hasher = options.hasher;
     this.config = { hashKey: options.hashKey, hashValue: options.hashValue };
+    this.keyType = keyType;
+    this.valueType = valueType;
   }
 
   /**
@@ -84,7 +77,7 @@ class ProvableDeepSparseMerkleSubTree<
   }
 
   private getKeyField(key: K): Field {
-    let keyFields = key.toFields();
+    let keyFields = this.keyType.toFields(key);
     let keyHashOrKeyField = keyFields[0];
     if (this.config.hashKey) {
       keyHashOrKeyField = this.hasher(keyFields);
@@ -96,7 +89,7 @@ class ProvableDeepSparseMerkleSubTree<
   private getValueField(value?: V): Field {
     let valueHashOrValueField = EMPTY_VALUE;
     if (value) {
-      let valueFields = value.toFields();
+      let valueFields = this.valueType.toFields(value);
       valueHashOrValueField = valueFields[0];
       if (this.config.hashValue) {
         valueHashOrValueField = this.hasher(valueFields);
@@ -170,7 +163,7 @@ class ProvableDeepSparseMerkleSubTree<
         }
       }
 
-      return new SparseMerkleProof(sideNodes, this.root).toConstant();
+      return { sideNodes, root: this.root };
     });
   }
 
@@ -210,7 +203,7 @@ class ProvableDeepSparseMerkleSubTree<
         }
       }
 
-      return new SMTSideNodes(sideNodes).toConstant();
+      return { arr: sideNodes };
     });
 
     let sideNodes = sideNodesArr.arr;

@@ -20,7 +20,11 @@ describe('CompactSparseMerkleTree', () => {
 
   beforeEach(async () => {
     await isReady;
-    tree = new CompactSparseMerkleTree<Field, Field>(new MemoryStore<Field>());
+    tree = new CompactSparseMerkleTree<Field, Field>(
+      new MemoryStore<Field>(),
+      Field,
+      Field
+    );
   });
 
   it('should create and verify proof correctly', async () => {
@@ -39,12 +43,21 @@ describe('CompactSparseMerkleTree', () => {
     const root = tree.getRoot();
     for (let i = 0; i < updateTimes; i++) {
       const proof = await tree.prove(keys[i]);
-      expect(CSMTUtils.checkMemebership(proof, root, keys[i], values[i]));
+      expect(
+        CSMTUtils.checkMemebership(
+          proof,
+          root,
+          keys[i],
+          Field,
+          values[i],
+          Field
+        )
+      );
     }
 
     const key = Poseidon.hash(keys[0].toFields());
     const nonMembershipProof = await tree.prove(key);
-    expect(CSMTUtils.checkNonMemebership(nonMembershipProof, root, key));
+    expect(CSMTUtils.checkNonMemebership(nonMembershipProof, root, key, Field));
   });
 
   it('should delete element correctly', async () => {
@@ -54,7 +67,7 @@ describe('CompactSparseMerkleTree', () => {
     const root = await tree.delete(x);
 
     const nonMembershipProof = await tree.prove(x);
-    expect(CSMTUtils.checkNonMemebership(nonMembershipProof, root, x));
+    expect(CSMTUtils.checkNonMemebership(nonMembershipProof, root, x, Field));
   });
 
   it('should get and check element correctly', async () => {
@@ -76,7 +89,9 @@ describe('CompactSparseMerkleTree', () => {
     const cproof = await tree.proveCompact(x);
     const proof = CSMTUtils.decompactProof(cproof);
 
-    expect(CSMTUtils.checkMemebership<Field, Field>(proof, root, x, y));
+    expect(
+      CSMTUtils.checkMemebership<Field, Field>(proof, root, x, Field, y, Field)
+    );
   });
 
   it('should create updatable proof correctly', async () => {
@@ -105,10 +120,17 @@ describe('CompactSparseMerkleTree', () => {
     const zproof = await tree.prove(z);
 
     Circuit.runAndCheck(() => {
-      ProvableCSMTUtils.checkMembership(proof, root, x, y).assertTrue();
+      ProvableCSMTUtils.checkMembership(
+        proof,
+        root,
+        x,
+        Field,
+        y,
+        Field
+      ).assertTrue();
       log('x y membership assert success');
 
-      ProvableCSMTUtils.checkNonMembership(zproof, root, z).assertTrue();
+      ProvableCSMTUtils.checkNonMembership(zproof, root, z, Field).assertTrue();
       log('z nonMembership assert success');
     });
   });

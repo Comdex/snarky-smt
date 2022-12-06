@@ -1,6 +1,6 @@
-import { Field, Poseidon } from 'snarkyjs';
+import { Field, Poseidon, Provable } from 'snarkyjs';
 import { ERR_KEY_ALREADY_EMPTY, RIGHT } from '../constant';
-import { FieldElements, Hasher } from '../model';
+import { Hasher } from '../model';
 import { Store } from '../store/store';
 import { countCommonPrefix } from '../utils';
 import { CP_PADD_VALUE, CSMT_DEPTH, PLACEHOLDER } from './constant';
@@ -20,18 +20,19 @@ export { CompactSparseMerkleTree };
  * @template K
  * @template V
  */
-class CompactSparseMerkleTree<
-  K extends FieldElements,
-  V extends FieldElements
-> {
+class CompactSparseMerkleTree<K, V> {
   protected th: TreeHasher<K, V>;
   protected store: Store<V>;
   protected root: Field;
   protected config: { hashKey: boolean; hashValue: boolean };
+  protected keyType: Provable<K>;
+  protected valueType: Provable<V>;
 
   /**
    * Creates an instance of CompactSparseMerkleTree.
    * @param {Store<V>} store
+   * @param {Provable<K>} keyType
+   * @param {Provable<V>} valueType
    * @param {Field} [root]
    * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
    *       hasher: Poseidon.hash,
@@ -44,6 +45,8 @@ class CompactSparseMerkleTree<
    */
   constructor(
     store: Store<V>,
+    keyType: Provable<K>,
+    valueType: Provable<V>,
     root?: Field,
     options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
       hasher: Poseidon.hash,
@@ -63,7 +66,7 @@ class CompactSparseMerkleTree<
       config.hashValue = options.hashValue;
     }
 
-    this.th = new TreeHasher<K, V>(hasher);
+    this.th = new TreeHasher<K, V>(hasher, keyType, valueType);
     this.store = store;
     this.config = config;
     if (root) {
@@ -71,6 +74,9 @@ class CompactSparseMerkleTree<
     } else {
       this.root = PLACEHOLDER;
     }
+
+    this.keyType = keyType;
+    this.valueType = valueType;
   }
 
   /**
@@ -80,6 +86,8 @@ class CompactSparseMerkleTree<
    * @template K
    * @template V
    * @param {Store<V>} store
+   * @param {Provable<K>} keyType
+   * @param {Provable<V>} valueType
    * @param {{ hasher?: Hasher; hashKey?: boolean; hashValue?: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashKey: true,
@@ -90,8 +98,10 @@ class CompactSparseMerkleTree<
    * @return {*}  {Promise<CompactSparseMerkleTree<K, V>>}
    * @memberof CompactSparseMerkleTree
    */
-  static async import<K extends FieldElements, V extends FieldElements>(
+  static async import<K, V>(
     store: Store<V>,
+    keyType: Provable<K>,
+    valueType: Provable<V>,
     options: { hasher?: Hasher; hashKey?: boolean; hashValue?: boolean } = {
       hasher: Poseidon.hash,
       hashKey: true,
@@ -114,7 +124,7 @@ class CompactSparseMerkleTree<
     if (root === null) {
       throw new Error('Root does not exist in store');
     }
-    return new CompactSparseMerkleTree(store, root, config);
+    return new CompactSparseMerkleTree(store, keyType, valueType, root, config);
   }
 
   protected getKeyField(key: K): Field {
@@ -122,7 +132,7 @@ class CompactSparseMerkleTree<
     if (this.config.hashKey) {
       keyField = this.th.path(key);
     } else {
-      let keyFields = key.toFields();
+      let keyFields = this.keyType.toFields(key);
       if (keyFields.length > 1) {
         throw new Error(
           `The length of key fields is greater than 1, the key needs to be hashed before it can be processed, option 'hashKey' must be set to true`
@@ -345,12 +355,12 @@ class CompactSparseMerkleTree<
     if (siblingData === null) {
       siblingData = this.th.emptyData();
     }
-    return new CompactSparseMerkleProof(
+    return new CompactSparseMerkleProof({
       sideNodes,
       nonMembershipLeafData,
       siblingData,
-      root
-    );
+      root,
+    });
   }
 
   private async updateForRoot(root: Field, key: K, value?: V): Promise<Field> {
@@ -403,9 +413,9 @@ class CompactSparseMerkleTree<
   ): Field {
     let valueField = null;
     if (this.config.hashValue) {
-      valueField = this.th.digest(value);
+      valueField = this.th.digestValue(value);
     } else {
-      let valueFields = value.toFields();
+      let valueFields = this.valueType.toFields(value);
       if (valueFields.length > 1) {
         throw new Error(
           `The length of value fields is greater than 1, the value needs to be hashed before it can be processed, option 'hashValue' must be set to true`

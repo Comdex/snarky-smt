@@ -1,8 +1,8 @@
-import { Field, Poseidon } from 'snarkyjs';
+import { Field, Poseidon, Provable } from 'snarkyjs';
 
 import { EMPTY_VALUE, RIGHT, SMT_DEPTH } from '../constant';
 import { defaultNodes } from '../default_nodes';
-import { FieldElements, Hasher } from '../model';
+import { Hasher } from '../model';
 import { Store } from '../store/store';
 import { BaseMerkleProof, CompactMerkleProof, MerkleTreeUtils } from './proofs';
 import { ProvableMerkleTreeUtils } from './verify_circuit';
@@ -15,13 +15,14 @@ export { MerkleTree };
  * @class MerkleTree
  * @template V
  */
-class MerkleTree<V extends FieldElements> {
+class MerkleTree<V> {
   protected root: Field;
   protected store: Store<V>;
   protected hasher: Hasher;
   protected readonly height: number;
   protected readonly maxNumIndex: bigint;
   protected readonly hashValue: boolean;
+  protected valueType: Provable<V>;
 
   /**
    * Build a new merkle tree.
@@ -30,6 +31,7 @@ class MerkleTree<V extends FieldElements> {
    * @template V
    * @param {Store<V>} store
    * @param {number} height
+   * @param {Provable<V>} valueType
    * @param {{ hasher?: Hasher; hashValue?: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
@@ -38,9 +40,10 @@ class MerkleTree<V extends FieldElements> {
    * @return {*}  {Promise<MerkleTree<V>>}
    * @memberof MerkleTree
    */
-  public static async build<V extends FieldElements>(
+  public static async build<V>(
     store: Store<V>,
     height: number,
+    valueType: Provable<V>,
     options: { hasher?: Hasher; hashValue?: boolean } = {
       hasher: Poseidon.hash,
       hashValue: true,
@@ -73,7 +76,7 @@ class MerkleTree<V extends FieldElements> {
     store.prepareUpdateRoot(root);
     await store.commit();
 
-    return new MerkleTree(root, store, height, hasher, hashValue);
+    return new MerkleTree(root, store, height, valueType, hasher, hashValue);
   }
 
   /**
@@ -83,6 +86,7 @@ class MerkleTree<V extends FieldElements> {
    * @template V
    * @param {Store<V>} store
    * @param {number} height
+   * @param {Provable<V>} valueType
    * @param {{ hasher?: Hasher; hashValue?: boolean }} [options={
    *       hasher: Poseidon.hash,
    *       hashValue: true,
@@ -91,9 +95,10 @@ class MerkleTree<V extends FieldElements> {
    * @return {*}  {Promise<MerkleTree<V>>}
    * @memberof MerkleTree
    */
-  public static async import<V extends FieldElements>(
+  public static async import<V>(
     store: Store<V>,
     height: number,
+    valueType: Provable<V>,
     options: { hasher?: Hasher; hashValue?: boolean } = {
       hasher: Poseidon.hash,
       hashValue: true,
@@ -113,13 +118,14 @@ class MerkleTree<V extends FieldElements> {
 
     const root: Field = await store.getRoot();
 
-    return new MerkleTree(root, store, height, hasher, hashValue);
+    return new MerkleTree(root, store, height, valueType, hasher, hashValue);
   }
 
   private constructor(
     root: Field,
     store: Store<V>,
     height: number,
+    valueType: Provable<V>,
     hasher: Hasher,
     hashValue: boolean
   ) {
@@ -135,6 +141,8 @@ class MerkleTree<V extends FieldElements> {
 
     let h = BigInt(height);
     this.maxNumIndex = 2n ** h - 1n;
+
+    this.valueType = valueType;
   }
 
   /**
@@ -367,7 +375,7 @@ class MerkleTree<V extends FieldElements> {
     let currentHash: Field;
 
     if (value !== undefined) {
-      const valueFields = value.toFields();
+      const valueFields = this.valueType.toFields(value);
 
       if (this.hashValue) {
         currentHash = this.digest(valueFields);
