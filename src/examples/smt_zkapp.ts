@@ -17,7 +17,6 @@ import {
   Permissions,
   Poseidon,
   PrivateKey,
-  prop,
   PublicKey,
   shutdown,
   SmartContract,
@@ -60,11 +59,11 @@ class Leaderboard extends SmartContract {
 
   deploy(args: DeployArgs) {
     super.deploy(args);
-    this.setPermissions({
+    this.account.permissions.set({
       ...Permissions.default(),
       editState: Permissions.proofOrSignature(),
     });
-    this.balance.addInPlace(UInt64.from(initialBalance));
+
     this.commitment.set(initialCommitment);
   }
 
@@ -144,11 +143,11 @@ class Leaderboard extends SmartContract {
   }
 }
 
-let Local = Mina.LocalBlockchain();
+let Local = Mina.LocalBlockchain({ proofsEnabled: doProofs });
 Mina.setActiveInstance(Local);
-let initialBalance = 10_000_000_000;
 
-let feePayer = Local.testAccounts[0].privateKey;
+let feePayer = Local.testAccounts[0].publicKey;
+let feePayerKey = Local.testAccounts[0].privateKey;
 
 // the zkapp account
 let zkappKey = PrivateKey.random();
@@ -196,10 +195,11 @@ if (doProofs) {
   await Leaderboard.compile();
 }
 let tx = await Mina.transaction(feePayer, () => {
-  AccountUpdate.fundNewAccount(feePayer, { initialBalance });
+  AccountUpdate.fundNewAccount(feePayer);
   leaderboardZkApp.deploy({ zkappKey });
 });
-await tx.send();
+await tx.prove();
+await tx.sign([feePayerKey]).send();
 
 console.log('Initial points: ' + (await smt.get(Bob))?.points);
 
@@ -219,12 +219,9 @@ async function addNewAccount(name: CircuitString, account: Account) {
 
   let tx = await Mina.transaction(feePayer, () => {
     leaderboardZkApp.addNewAccount(name, account, merkleProof);
-    if (!doProofs) leaderboardZkApp.sign(zkappKey);
   });
-  if (doProofs) {
-    await tx.prove();
-  }
-  await tx.send();
+  await tx.prove();
+  await tx.sign([feePayerKey]).send();
 
   await smt.update(name, account!);
   leaderboardZkApp.commitment.get().assertEquals(smt.getRoot());
@@ -237,12 +234,9 @@ async function makeGuess(name: CircuitString, guess: number) {
 
   let tx = await Mina.transaction(feePayer, () => {
     leaderboardZkApp.guessPreimage(Field(guess), name, account!, merkleProof);
-    if (!doProofs) leaderboardZkApp.sign(zkappKey);
   });
-  if (doProofs) {
-    await tx.prove();
-  }
-  await tx.send();
+  await tx.prove();
+  await tx.sign([feePayerKey]).send();
 
   // if the transaction was successful, we can update our off-chain storage as well
   account!.points = account!.points.add(1);
