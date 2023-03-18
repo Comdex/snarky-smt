@@ -13,6 +13,7 @@ import {
   State,
   state,
 } from 'snarkyjs';
+import { getProofsEnabled } from 'snarkyjs/dist/node/lib/mina';
 import { ProvableDeepMerkleSubTree } from '../lib/merkle/deep_subtree_circuit';
 import { MerkleTree } from '../lib/merkle/merkle_tree';
 import { ProvableMerkleTreeUtils } from '../lib/merkle/verify_circuit';
@@ -33,7 +34,7 @@ class TestZkapp extends SmartContract {
   deploy(args: DeployArgs) {
     super.deploy(args);
 
-    this.setPermissions({
+    this.account.permissions.set({
       ...Permissions.default(),
       editState: Permissions.proofOrSignature(),
     });
@@ -86,8 +87,9 @@ class TestZkapp extends SmartContract {
   }
 }
 
-let local = Mina.LocalBlockchain();
+let local = Mina.LocalBlockchain({ proofsEnabled: doProofs });
 Mina.setActiveInstance(local);
+let feePayer = local.testAccounts[0].publicKey;
 let feePayerKey = local.testAccounts[0].privateKey;
 let zkappKey = PrivateKey.random();
 let zkappAddress = zkappKey.toPublicKey();
@@ -125,17 +127,17 @@ async function test() {
   }
 
   console.log('deploying');
-  let tx = await local.transaction(feePayerKey, () => {
-    AccountUpdate.fundNewAccount(feePayerKey);
+  let tx = await local.transaction(feePayer, () => {
+    AccountUpdate.fundNewAccount(feePayer);
     zkapp.deploy({ zkappKey });
   });
-  if (doProofs) await tx.prove();
-  await tx.send();
+  await tx.prove();
+  await tx.sign([feePayerKey]).send();
 
   console.log('deploy done');
 
   console.log('start method');
-  tx = await local.transaction(feePayerKey, () => {
+  tx = await local.transaction(feePayer, () => {
     zkapp.merkle(
       proof1,
       Field(key1),
@@ -147,11 +149,9 @@ async function test() {
       Field(key3),
       value3
     );
-
-    if (!doProofs) zkapp.sign(zkappKey);
   });
-  if (doProofs) await tx.prove();
-  await tx.send();
+  await tx.prove();
+  await tx.sign([feePayerKey]).send();
   console.log('end method');
   shutdown();
 }
